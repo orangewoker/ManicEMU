@@ -22,11 +22,7 @@ final class J2MELocalServer {
             allowRangeRequests: true
         )
 
-        server.addHandler(
-            forMethod: "GET",
-            pathRegex: "/.*\\.wasm",
-            request: GCDWebServerRequest.self
-        ) { request in
+        let wasmHandler: GCDWebServerProcessBlock = { request in
             let path = resources.appendingPathComponent(request.path)
             guard FileManager.default.fileExists(atPath: path.path) else {
                 return GCDWebServerResponse(statusCode: 404)
@@ -35,12 +31,14 @@ final class J2MELocalServer {
             response?.contentType = "application/wasm"
             return response
         }
-
         server.addHandler(
             forMethod: "GET",
-            pathRegex: "/file/.*",
-            request: GCDWebServerRequest.self
-        ) { [weak self] request in
+            pathRegex: "/.*\\.wasm",
+            request: GCDWebServerRequest.self,
+            processBlock: wasmHandler
+        )
+
+        let fileHandler: GCDWebServerProcessBlock = { [weak self] request in
             guard let self,
                   let url = self.files[request.path.lastPathComponent],
                   FileManager.default.fileExists(atPath: url.path)
@@ -51,6 +49,12 @@ final class J2MELocalServer {
             response?.contentType = "application/java-archive"
             return response
         }
+        server.addHandler(
+            forMethod: "GET",
+            pathRegex: "/file/.*",
+            request: GCDWebServerRequest.self,
+            processBlock: fileHandler
+        )
 
         try server.start(options: [
             GCDWebServerOption_Port: 0,
