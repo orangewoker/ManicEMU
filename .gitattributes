@@ -11,3 +11,8 @@ System.core/Libretro/system/fbneo/cheats/wayder_cheat.dat filter=lfs diff=lfs me
 System.core/Libretro/system/PPSSPP/vfpu/vfpu_log2_lut.dat filter=lfs diff=lfs merge=lfs -text
 System.core/j2mejs/java/classes.jar filter=lfs diff=lfs merge=lfs -text
 System.core/shared_font.bin filter=lfs diff=lfs merge=lfs -text
+
+# JavaPocket must build on runners even when the upstream LFS quota is exhausted.
+# Keep only its two runtime WASM files in regular Git; all unrelated cores remain LFS.
+System.core/freej2me/libmedia/transcode/transcode.wasm -filter -diff -merge -text
+System.core/freej2me/libmidi/libmidi.wasm -filter -diff -merge -text

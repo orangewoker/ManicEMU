@@ -457,9 +457,17 @@
 
             document.getElementById('loading').textContent = '';
 
-            libmidi = new LibMidi(createUnlockingAudioContext());
-            await libmidi.init();
-            window.libmidi = libmidi;
+            // MIDI is optional. Some source archives omit the large WASM decoder;
+            // keep the VM usable for games that do not need MIDI in that case.
+            try {
+                libmidi = new LibMidi(createUnlockingAudioContext());
+                await libmidi.init();
+                window.libmidi = libmidi;
+            } catch (error) {
+                console.warn('[JavaPocket] MIDI runtime unavailable:', error);
+                libmidi = null;
+                window.libmidi = null;
+            }
             // Expose evtQueue for mediaBridgeNatives override above
             window.evtQueue = evtQueue;
 
