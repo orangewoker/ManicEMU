@@ -1,7 +1,6 @@
 import Foundation
 import GCDWebServer
 
-@MainActor
 final class J2MELocalServer {
     private let server = GCDWebServer()
     private var files: [String: URL] = [:]
