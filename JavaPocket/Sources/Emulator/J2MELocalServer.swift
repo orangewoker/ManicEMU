@@ -39,8 +39,9 @@ final class J2MELocalServer {
         )
 
         let fileHandler: GCDWebServerProcessBlock = { [weak self] request in
+            let identifier = URL(fileURLWithPath: request.path).lastPathComponent
             guard let self,
-                  let url = self.files[request.path.lastPathComponent],
+                  let url = self.files[identifier],
                   FileManager.default.fileExists(atPath: url.path)
             else { return GCDWebServerResponse(statusCode: 404) }
             let response = GCDWebServerFileResponse(file: url.path)
