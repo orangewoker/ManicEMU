@@ -1,0 +1,93 @@
+name: JavaPocket unsigned IPA
+
+on:
+  push:
+    branches: [ios]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: javapocket-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    env:
+      GIT_LFS_SKIP_SMUDGE: "1"
+      PROJECT: ManicEmu/ManicEmu.xcodeproj
+      SCHEME: JavaPocket
+      DERIVED_DATA: build/DerivedData
+    steps:
+      - name: Checkout without unrelated LFS cores
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+          fetch-depth: 0
+
+      - name: Verify JavaPocket structure and runtime assets
+        run: python3 -m unittest discover -s Tests -v
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Resolve the two JavaPocket packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME"
+
+      - name: Build unsigned device app
+        run: |
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Package and verify unsigned IPA
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$DERIVED_DATA/Build/Products/Release-iphoneos/JavaPocket.app"
+          test -d "$APP"
+          test -f "$APP/freej2me/freej2me-web.jar"
+          test -f "$APP/freej2me/libmidi/libmidi.wasm"
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")
+          mkdir -p build/Payload build/release
+          ditto "$APP" build/Payload/JavaPocket.app
+          (cd build && zip -qry "release/JavaPocket-${VERSION}-${BUILD}-unsigned.ipa" Payload)
+          IPA="build/release/JavaPocket-${VERSION}-${BUILD}-unsigned.ipa"
+          unzip -l "$IPA" | grep 'Payload/JavaPocket.app/JavaPocket'
+          if unzip -l "$IPA" | grep -q 'embedded.mobileprovision'; then
+            echo 'IPA unexpectedly contains embedded.mobileprovision' >&2
+            exit 1
+          fi
+          echo "ipa=$IPA" >> "$GITHUB_OUTPUT"
+          echo "tag=ios-v${VERSION}-${BUILD}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JavaPocket-unsigned-ipa
+          path: ${{ steps.package.outputs.ipa }}
+          if-no-files-found: error
+
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package.outputs.tag }}
+          prerelease: true
+          generate_release_notes: true
+          files: ${{ steps.package.outputs.ipa }}
