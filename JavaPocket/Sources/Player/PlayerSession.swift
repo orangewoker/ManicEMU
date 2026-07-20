@@ -5,8 +5,10 @@ final class PlayerSession: ObservableObject {
     @Published private(set) var isReady = false
     @Published private(set) var errorMessage: String?
     @Published var isMuted = false
-    @Published var isFastForwarding = false
+    @Published private(set) var speedMultiplier = 1
     @Published private(set) var hasSave = false
+    @Published private(set) var hasQuickSnapshot = false
+    @Published private(set) var isSnapshotBusy = false
     @Published var isModifierPresented = false
     @Published private(set) var autoContinueOutcome: Bool?
 
@@ -14,7 +16,9 @@ final class PlayerSession: ObservableObject {
 
     func attach(_ view: J2MEView) {
         emulatorView = view
+        isReady = view.isReadyForPlay
         hasSave = view.hasSave
+        hasQuickSnapshot = view.hasQuickSnapshot
         view.onReady = { [weak self] in
             self?.isReady = true
             self?.errorMessage = nil
@@ -35,9 +39,41 @@ final class PlayerSession: ObservableObject {
         emulatorView?.setMuted(isMuted)
     }
 
-    func toggleFastForward() {
-        isFastForwarding.toggle()
-        emulatorView?.setSpeed(isFastForwarding ? 2 : 1)
+    func cycleSpeed() {
+        switch speedMultiplier {
+        case 1: speedMultiplier = 2
+        case 2: speedMultiplier = 4
+        case 4: speedMultiplier = 5
+        default: speedMultiplier = 1
+        }
+        emulatorView?.setSpeed(Double(speedMultiplier))
+    }
+
+    func captureQuickSnapshot(completion: ((Bool) -> Void)? = nil) {
+        guard let emulatorView, isReady, !isSnapshotBusy else {
+            completion?(false)
+            return
+        }
+        isSnapshotBusy = true
+        Task {
+            let success = await emulatorView.captureQuickSnapshot()
+            if success { hasQuickSnapshot = true }
+            isSnapshotBusy = false
+            completion?(success)
+        }
+    }
+
+    func restoreQuickSnapshot(completion: ((Bool) -> Void)? = nil) async -> Bool {
+        guard let emulatorView, emulatorView.hasQuickSnapshot, !isSnapshotBusy else {
+            completion?(false)
+            return false
+        }
+        isSnapshotBusy = true
+        let success = await emulatorView.restoreQuickSnapshot()
+        hasQuickSnapshot = emulatorView.hasQuickSnapshot
+        isSnapshotBusy = false
+        completion?(success)
+        return success
     }
 
     func toggleModifier() {

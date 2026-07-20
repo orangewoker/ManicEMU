@@ -128,16 +128,16 @@ private struct ManicQuickControls: View {
                     .foregroundStyle(saveColor)
                     .frame(width: 32, height: 30)
             }
-            .accessibilityLabel("快速保存")
+            .accessibilityLabel("保存快照")
 
             Button(action: quickLoad) {
                 Image(systemName: loadIcon)
                     .foregroundStyle(loadColor)
                     .frame(width: 32, height: 30)
             }
-            .disabled(!session.hasSave || !session.isReady)
-            .opacity(session.hasSave ? 1 : 0.35)
-            .accessibilityLabel("加载上次保存")
+            .disabled(!session.hasQuickSnapshot || !session.isReady || session.isSnapshotBusy)
+            .opacity(session.hasQuickSnapshot ? 1 : 0.35)
+            .accessibilityLabel("加载快照")
 
             Button(action: session.toggleMute) {
                 Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
@@ -146,29 +146,18 @@ private struct ManicQuickControls: View {
             }
             .accessibilityLabel(session.isMuted ? "恢复声音" : "静音")
 
-            Button(action: session.toggleFastForward) {
-                Image(systemName: "forward.fill")
-                    .foregroundStyle(session.isFastForwarding ? .red : .white.opacity(0.72))
+            Button(action: session.cycleSpeed) {
+                Text("\(session.speedMultiplier)×")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(session.speedMultiplier > 1 ? .red : .white.opacity(0.72))
                     .frame(width: 32, height: 30)
             }
-            .accessibilityLabel(session.isFastForwarding ? "恢复正常速度" : "二倍速")
+            .accessibilityLabel("当前 \(session.speedMultiplier) 倍速，点击切换 2、4、5 倍速")
         }
         .font(.system(size: 15, weight: .semibold))
         .buttonStyle(.plain)
         .disabled(!session.isReady)
         .opacity(session.isReady ? 1 : 0.35)
-        .onChange(of: session.isReady) { ready in
-            guard ready, loadState == .loading else { return }
-            if let outcome = session.autoContinueOutcome {
-                loadState = outcome ? .success : .failure
-                resetLoadStateLater()
-            }
-        }
-        .onChange(of: session.autoContinueOutcome) { outcome in
-            guard let outcome, session.isReady, loadState == .loading else { return }
-            loadState = outcome ? .success : .failure
-            resetLoadStateLater()
-        }
     }
 
     private var saveIcon: String {
@@ -208,7 +197,7 @@ private struct ManicQuickControls: View {
     private func quickSave() {
         guard saveState != .saving else { return }
         saveState = .saving
-        session.save { success in
+        session.captureQuickSnapshot { success in
             saveState = success ? .success : .failure
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 saveState = .idle
@@ -219,8 +208,9 @@ private struct ManicQuickControls: View {
     private func quickLoad() {
         guard loadState != .loading else { return }
         loadState = .loading
-        if !session.loadLastSave() {
-            loadState = .failure
+        Task {
+            let success = await session.restoreQuickSnapshot()
+            loadState = success ? .success : .failure
             resetLoadStateLater()
         }
     }

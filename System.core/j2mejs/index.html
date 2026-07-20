@@ -544,7 +544,8 @@
       applyCanvasScale();
     }
 
-    function _setMute(mute) {
+    var _muted = false;
+    function _applyAudioMute(mute) {
       try {
         var contexts = [window.AA, window._audioContext, window.audioContext];
         for (var i = 0; i < contexts.length; i++) {
@@ -672,14 +673,14 @@
     function _pause() {
       if (_paused) return;
       _paused = true;
-      _setMute(true);
+      _applyAudioMute(true);
       console.log('[iOS] Emulator paused');
     }
 
     function _resume() {
       if (!_paused) return;
       _paused = false;
-      _setMute(false);
+      _applyAudioMute(_muted);
       // Kick the scheduler to process contexts that accumulated while paused
       if (typeof J2ME !== 'undefined' && J2ME.Scheduler && _origProcessRunningQueue) {
         _origProcessRunningQueue.call(J2ME.Scheduler, false);
@@ -888,6 +889,215 @@
       };
     }
 
+    // In-session VM snapshot used by the controls below the display. This is
+    // deliberately separate from RMS: RMS remains the game's own durable save,
+    // while this captures the Java heap, interpreter stacks/registers, runtime
+    // class state, monitors and the current framebuffer for immediate rollback.
+    var _quickSnapshot = null;
+
+    function _snapshotContext(ctx) {
+      var thread = ctx.nativeThread;
+      return {
+        ref: ctx,
+        priority: ctx.priority,
+        virtualRuntime: ctx.virtualRuntime,
+        paused: ctx.paused,
+        lockLevel: ctx.lockLevel,
+        threadAddress: ctx.threadAddress,
+        threadData: Array.prototype.slice.call(ctx.threadData),
+        thread: {
+          tp: thread.tp,
+          bp: thread.bp,
+          fp: thread.fp,
+          sp: thread.sp,
+          pc: thread.pc,
+          nativeFrameCount: thread.nativeFrameCount,
+          pendingNativeFrames: thread.pendingNativeFrames.slice(),
+          unwoundNativeFrames: thread.unwoundNativeFrames.slice()
+        }
+      };
+    }
+
+    function _snapshotRuntime(runtime) {
+      return {
+        ref: runtime,
+        priority: runtime.priority,
+        status: runtime.status,
+        threadCount: runtime.threadCount,
+        mainThread: runtime.mainThread,
+        nextHashCode: runtime._nextHashCode,
+        initialized: new Int8Array(runtime.initialized),
+        staticObjectAddresses: new Int32Array(runtime.staticObjectAddresses),
+        classObjectAddresses: new Int32Array(runtime.classObjectAddresses),
+        contexts: Array.from(runtime.allCtxs).map(_snapshotContext)
+      };
+    }
+
+    function _snapshotMonitors() {
+      var result = [];
+      if (typeof J2ME === 'undefined' || !J2ME.monitorMap) return result;
+      Object.keys(J2ME.monitorMap).forEach(function(key) {
+        var lock = J2ME.monitorMap[key];
+        result.push({
+          key: key,
+          ref: lock,
+          threadAddress: lock.threadAddress,
+          level: lock.level,
+          ready: lock.ready.slice(),
+          waiting: lock.waiting.slice()
+        });
+      });
+      return result;
+    }
+
+    function _captureHeapPages() {
+      var heap = ASM.HEAPU8;
+      var words = ASM.HEAPU32;
+      var pageSize = 65536;
+      var pages = [];
+      for (var offset = 0; offset < heap.length; offset += pageSize) {
+        var end = Math.min(offset + pageSize, heap.length);
+        var startWord = offset >>> 2;
+        var endWord = end >>> 2;
+        var nonzero = false;
+        for (var word = startWord; word < endWord; word++) {
+          if (words[word] !== 0) { nonzero = true; break; }
+        }
+        if (nonzero) pages.push({ offset: offset, data: heap.slice(offset, end) });
+      }
+      return { byteLength: heap.length, pages: pages };
+    }
+
+    function _captureQuickSnapshot() {
+      if (typeof ASM === 'undefined' || typeof J2ME === 'undefined' || !J2ME.Runtime) {
+        return Promise.resolve({ success: false, error: 'VM is not ready' });
+      }
+      var wasPaused = _paused;
+      if (!wasPaused) _pause();
+      return new Promise(function(resolve) {
+        setTimeout(function() {
+          try {
+            var canvas = document.getElementById('canvas');
+            var frame = null;
+            try {
+              var context = canvas && canvas.getContext('2d');
+              if (context) frame = context.getImageData(0, 0, canvas.width, canvas.height);
+            } catch(e) {}
+            _quickSnapshot = {
+              version: 1,
+              createdAt: Date.now(),
+              virtualNow: _virtualNow(),
+              heap: _captureHeapPages(),
+              runtimes: Array.from(J2ME.Runtime.all || []).map(_snapshotRuntime),
+              monitors: _snapshotMonitors(),
+              nativeMapEntries: J2ME.NativeMap ? Array.from(J2ME.NativeMap.entries()) : [],
+              modifierFrozen: Object.keys(_modifierFrozen || {}).map(function(key) {
+                var item = _modifierFrozen[key];
+                return { key: key, type: item.type, address: item.address, value: item.value };
+              }),
+              frame: frame
+            };
+            var storedBytes = _quickSnapshot.heap.pages.reduce(function(sum, page) {
+              return sum + page.data.byteLength;
+            }, 0);
+            if (!wasPaused) _resume();
+            resolve({ success: true, storedBytes: storedBytes, createdAt: _quickSnapshot.createdAt });
+          } catch(error) {
+            if (!wasPaused) _resume();
+            resolve({ success: false, error: String(error) });
+          }
+        }, 70);
+      });
+    }
+
+    function _restoreContext(state) {
+      var ctx = state.ref;
+      if (!ctx || !ctx.nativeThread) return;
+      ctx.priority = state.priority;
+      ctx.virtualRuntime = state.virtualRuntime;
+      ctx.paused = state.paused;
+      ctx.lockLevel = state.lockLevel;
+      ctx.threadAddress = state.threadAddress;
+      if (ctx.threadData && state.threadData) ctx.threadData.set(state.threadData);
+      var thread = ctx.nativeThread;
+      thread.tp = state.thread.tp;
+      thread.bp = state.thread.bp;
+      thread.fp = state.thread.fp;
+      thread.sp = state.thread.sp;
+      thread.pc = state.thread.pc;
+      thread.nativeFrameCount = state.thread.nativeFrameCount;
+      thread.pendingNativeFrames = state.thread.pendingNativeFrames.slice();
+      thread.unwoundNativeFrames = state.thread.unwoundNativeFrames.slice();
+    }
+
+    function _restoreRuntime(state) {
+      var runtime = state.ref;
+      if (!runtime) return;
+      runtime.priority = state.priority;
+      runtime.status = state.status;
+      runtime.threadCount = state.threadCount;
+      runtime.mainThread = state.mainThread;
+      runtime._nextHashCode = state.nextHashCode;
+      runtime.I = runtime.initialized = new Int8Array(state.initialized);
+      runtime.SA = runtime.staticObjectAddresses = new Int32Array(state.staticObjectAddresses);
+      runtime.CO = runtime.classObjectAddresses = new Int32Array(state.classObjectAddresses);
+      runtime.allCtxs = new Set(state.contexts.map(function(item) { return item.ref; }));
+      state.contexts.forEach(_restoreContext);
+    }
+
+    function _restoreMonitors(states) {
+      if (!J2ME.monitorMap) return;
+      Object.keys(J2ME.monitorMap).forEach(function(key) { delete J2ME.monitorMap[key]; });
+      states.forEach(function(state) {
+        var lock = state.ref;
+        lock.threadAddress = state.threadAddress;
+        lock.level = state.level;
+        lock.ready = state.ready.slice();
+        lock.waiting = state.waiting.slice();
+        J2ME.monitorMap[state.key] = lock;
+      });
+    }
+
+    function _restoreQuickSnapshot() {
+      if (!_quickSnapshot) return Promise.resolve({ success: false, error: 'No snapshot' });
+      var wasPaused = _paused;
+      if (!wasPaused) _pause();
+      return new Promise(function(resolve) {
+        setTimeout(function() {
+          try {
+            var heap = ASM.HEAPU8;
+            if (_quickSnapshot.heap.byteLength !== heap.length) throw new Error('Heap size changed');
+            heap.fill(0);
+            _quickSnapshot.heap.pages.forEach(function(page) { heap.set(page.data, page.offset); });
+            _quickSnapshot.runtimes.forEach(_restoreRuntime);
+            _restoreMonitors(_quickSnapshot.monitors);
+            if (J2ME.NativeMap) {
+              J2ME.NativeMap.clear();
+              (_quickSnapshot.nativeMapEntries || []).forEach(function(entry) {
+                J2ME.NativeMap.set(entry[0], entry[1]);
+              });
+            }
+            _modifierFrozen = Object.create(null);
+            (_quickSnapshot.modifierFrozen || []).forEach(function(item) {
+              _modifierFrozen[item.key] = { type: item.type, address: item.address, value: item.value };
+            });
+            _vcBase = _quickSnapshot.virtualNow;
+            _vcRealBase = Date.now();
+            try {
+              var canvas = document.getElementById('canvas');
+              var context = canvas && canvas.getContext('2d');
+              if (context && _quickSnapshot.frame) context.putImageData(_quickSnapshot.frame, 0, 0);
+            } catch(e) {}
+            if (!wasPaused) _resume();
+            resolve({ success: true, createdAt: _quickSnapshot.createdAt });
+          } catch(error) {
+            if (!wasPaused) _resume();
+            resolve({ success: false, error: String(error) });
+          }
+        }, 70);
+      });
+    }
+
     function _modifierFirstScan(type, target) {
       var info = _modifierType(type);
       var indices = [], previous = [], truncated = false;
@@ -990,6 +1200,11 @@
           type: 'autoContinueComplete', success: !!success, message: message || ''
         });
       } catch(e) {}
+    }
+
+    function _setMute(mute) {
+      _muted = !!mute;
+      _applyAudioMute(_muted);
     }
 
     function _tryAutoContinue() {
@@ -1146,6 +1361,9 @@
       resume: _resume,
       setSpeed: _setSpeed,
       isPaused: function() { return _paused; },
+      captureQuickSnapshot: _captureQuickSnapshot,
+      restoreQuickSnapshot: _restoreQuickSnapshot,
+      hasQuickSnapshot: function() { return !!_quickSnapshot; },
       setParams: function(dict) {
         if (!dict || typeof dict !== 'object') return;
         for (var k in dict) {

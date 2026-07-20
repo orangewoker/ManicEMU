@@ -158,13 +158,27 @@ class JavaPocketProjectTests(unittest.TestCase):
         skin_source = (ROOT / "JavaPocket/Sources/Controller/ManicJ2MESkinView.swift").read_text(encoding="utf-8")
         self.assertIn("ManicDPadUIView", skin_source)
         self.assertIn("scaleEffect(x: scaleX, y: scaleY", skin_source)
-        for control in ("快速保存", "加载上次保存", "静音", "二倍速", "ManicQuickControls"):
+        for control in ("保存快照", "加载快照", "静音", "2、4、5 倍速", "ManicQuickControls"):
             self.assertIn(control, skin_source)
         session = (ROOT / "JavaPocket/Sources/Player/PlayerSession.swift").read_text(encoding="utf-8")
-        self.assertIn("toggleFastForward", session)
+        self.assertIn("cycleSpeed", session)
+        self.assertIn("case 2: speedMultiplier = 4", session)
+        self.assertIn("case 4: speedMultiplier = 5", session)
+        self.assertIn("captureQuickSnapshot", session)
+        self.assertIn("restoreQuickSnapshot", session)
         self.assertIn("loadLastSave", session)
         runtime = (ROOT / "JavaPocket/Sources/Emulator/J2MEView.swift").read_text(encoding="utf-8")
         self.assertIn("j2meAPI.setSpeed", runtime)
+        self.assertIn("func captureQuickSnapshot()", runtime)
+        self.assertIn("func restoreQuickSnapshot()", runtime)
+        container = (ROOT / "JavaPocket/Sources/Player/J2MEContainerView.swift").read_text(encoding="utf-8")
+        self.assertIn("J2MERuntimeCache", container)
+        self.assertIn("cached.hasQuickSnapshot", container)
+        j2mejs = (ROOT / "System.core/j2mejs/index.html").read_text(encoding="utf-8")
+        for api in ("_captureQuickSnapshot", "_restoreQuickSnapshot", "captureQuickSnapshot", "restoreQuickSnapshot"):
+            self.assertIn(api, j2mejs)
+        self.assertIn("ASM.HEAPU8", j2mejs)
+        self.assertIn("nativeFrameCount", j2mejs)
 
     def test_live_memory_and_rms_data_modifier(self):
         modifier = (ROOT / "JavaPocket/Sources/Modifier/DataModifierView.swift").read_text(encoding="utf-8")

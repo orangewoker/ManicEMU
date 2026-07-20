@@ -21,6 +21,10 @@ final class J2MEView: UIView {
     private lazy var networkBridge = J2MENetworkBridge(webView: webView)
     private var readinessAttempts = 0
     private var modifierValueType = ModifierValueType.int32
+    private(set) var hasQuickSnapshot = false
+
+    var gameID: String { game.id }
+    var isReadyForPlay: Bool { didOpenGame && isRuntimeReady }
 
     private lazy var webView: WKWebView = {
         let configuration = WKWebViewConfiguration()
@@ -93,6 +97,49 @@ final class J2MEView: UIView {
     func setSpeed(_ multiplier: Double) {
         let value = String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), multiplier)
         evaluate("if (window.j2meAPI && window.j2meAPI.setSpeed) window.j2meAPI.setSpeed(\(value));")
+    }
+
+    func captureQuickSnapshot() async -> Bool {
+        do {
+            let raw = try await webView.callAsyncJavaScript(
+                """
+                if (!window.j2meAPI || !window.j2meAPI.captureQuickSnapshot) {
+                  return { success: false, error: 'Snapshot API unavailable' };
+                }
+                return window.j2meAPI.captureQuickSnapshot();
+                """,
+                arguments: [:],
+                in: nil,
+                contentWorld: .page
+            )
+            let success = (raw as? [String: Any])?["success"] as? Bool ?? false
+            if success { hasQuickSnapshot = true }
+            return success
+        } catch {
+            onError?("快照保存失败：\(error.localizedDescription)")
+            return false
+        }
+    }
+
+    func restoreQuickSnapshot() async -> Bool {
+        guard hasQuickSnapshot else { return false }
+        do {
+            let raw = try await webView.callAsyncJavaScript(
+                """
+                if (!window.j2meAPI || !window.j2meAPI.restoreQuickSnapshot) {
+                  return { success: false, error: 'Snapshot API unavailable' };
+                }
+                return window.j2meAPI.restoreQuickSnapshot();
+                """,
+                arguments: [:],
+                in: nil,
+                contentWorld: .page
+            )
+            return (raw as? [String: Any])?["success"] as? Bool ?? false
+        } catch {
+            onError?("快照加载失败：\(error.localizedDescription)")
+            return false
+        }
     }
 
     func modifierFirstScan(type: ModifierValueType, value: Double) async throws -> ModifierScanPage {
