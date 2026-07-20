@@ -65,6 +65,16 @@ class JavaPocketProjectTests(unittest.TestCase):
         for value in ('"Games"', '"game.jar"', '"metadata.json"', '"save"', '"rms.zip"'):
             self.assertIn(value, storage)
 
+    def test_files_import_is_coordinated_and_reports_progress(self):
+        importer = (ROOT / "JavaPocket/Sources/Import/GameImportService.swift").read_text(encoding="utf-8")
+        library = (ROOT / "JavaPocket/Sources/Library/GameLibraryView.swift").read_text(encoding="utf-8")
+        store = (ROOT / "JavaPocket/Sources/Library/GameLibraryStore.swift").read_text(encoding="utf-8")
+        self.assertIn("NSFileCoordinator", importer)
+        self.assertIn(".incoming-", importer)
+        self.assertIn('exportedAs: "com.javapocket.j2me-archive"', library)
+        self.assertIn("isImporting", store)
+        self.assertIn("正在导入 JAR", library)
+
     def test_j2me_runtime_assets_and_api(self):
         expected = {
             "System.core/freej2me/libmidi/libmidi.wasm":

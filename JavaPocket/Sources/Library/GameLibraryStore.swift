@@ -22,13 +22,13 @@ final class GameLibraryStore: ObservableObject {
     @Published var filter: Filter = .all
     @Published var isGrid = true
     @Published var importError: String?
+    @Published var importNotice: String?
+    @Published private(set) var isImporting = false
 
     let storage: GameStorage
-    private let importer: GameImportService
 
     init(storage: GameStorage = GameStorage()) {
         self.storage = storage
-        importer = GameImportService(storage: storage)
         reload()
     }
 
@@ -63,19 +63,42 @@ final class GameLibraryStore: ObservableObject {
     }
 
     func importURLs(_ urls: [URL]) {
-        for url in urls {
-            do {
-                let game = try importer.importJAR(from: url)
-                if let index = games.firstIndex(where: { $0.id == game.id }) {
-                    games[index] = game
-                } else {
-                    games.append(game)
+        guard !urls.isEmpty, !isImporting else { return }
+        isImporting = true
+        importError = nil
+        importNotice = nil
+
+        let storage = storage
+        Task {
+            var importedCount = 0
+            for url in urls {
+                do {
+                    let game = try await Task.detached(priority: .userInitiated) {
+                        try GameImportService(storage: storage).importJAR(from: url)
+                    }.value
+                    if let index = games.firstIndex(where: { $0.id == game.id }) {
+                        games[index] = game
+                    } else {
+                        games.append(game)
+                    }
+                    importedCount += 1
+                } catch {
+                    importError = "\(url.lastPathComponent)：\(error.localizedDescription)"
                 }
-            } catch {
-                importError = error.localizedDescription
             }
+
+            games.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            if importedCount > 0 {
+                filter = .all
+                searchText = ""
+                if importError == nil {
+                    importNotice = importedCount == 1
+                        ? "游戏已加入 J2ME Games。"
+                        : "已导入 \(importedCount) 个游戏。"
+                }
+            }
+            isImporting = false
         }
-        games.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     func toggleFavorite(_ game: GameRecord) {

@@ -1,6 +1,6 @@
 import Foundation
 
-enum ControllerMode: String, Codable, CaseIterable, Identifiable {
+enum ControllerMode: String, Codable, CaseIterable, Identifiable, Sendable {
     case nokia
     case joystick
     case custom
@@ -16,7 +16,7 @@ enum ControllerMode: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-struct GameRecord: Codable, Identifiable, Hashable {
+struct GameRecord: Codable, Identifiable, Hashable, Sendable {
     let id: String
     var name: String
     var vendor: String

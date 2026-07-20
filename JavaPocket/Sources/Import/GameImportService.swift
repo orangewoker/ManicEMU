@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-struct GameImportService {
+struct GameImportService: @unchecked Sendable {
     let storage: GameStorage
     private let parser = JARManifestParser()
     private let fileManager = FileManager.default
@@ -14,7 +14,14 @@ struct GameImportService {
         let accessed = sourceURL.startAccessingSecurityScopedResource()
         defer { if accessed { sourceURL.stopAccessingSecurityScopedResource() } }
 
-        let jarData = try Data(contentsOf: sourceURL, options: .mappedIfSafe)
+        try storage.prepare()
+        let localURL = storage.gamesDirectory.appendingPathComponent(
+            ".incoming-\(UUID().uuidString).jar"
+        )
+        defer { try? fileManager.removeItem(at: localURL) }
+
+        try copyCoordinatedFile(from: sourceURL, to: localURL)
+        let jarData = try Data(contentsOf: localURL, options: .mappedIfSafe)
         let identifier = SHA256.hash(data: jarData).map { String(format: "%02x", $0) }.joined()
         let destination = storage.directory(for: identifier)
         if fileManager.fileExists(atPath: destination.path),
@@ -26,13 +33,12 @@ struct GameImportService {
             }
         }
 
-        let manifest = try parser.parse(url: sourceURL)
+        let manifest = try parser.parse(url: localURL)
         let size = manifest.screenSize
         let temporary = storage.gamesDirectory.appendingPathComponent(
             ".import-\(UUID().uuidString)",
             isDirectory: true
         )
-        try storage.prepare()
         try fileManager.createDirectory(at: temporary, withIntermediateDirectories: true)
 
         do {
@@ -72,11 +78,35 @@ struct GameImportService {
                 to: temporary.appendingPathComponent("metadata.json"),
                 options: .atomic
             )
+            if fileManager.fileExists(atPath: destination.path) {
+                try fileManager.removeItem(at: destination)
+            }
             try fileManager.moveItem(at: temporary, to: destination)
             return record
         } catch {
             try? fileManager.removeItem(at: temporary)
             throw error
         }
+    }
+
+    private func copyCoordinatedFile(from sourceURL: URL, to destinationURL: URL) throws {
+        let coordinator = NSFileCoordinator()
+        var coordinationError: NSError?
+        var copyError: Error?
+
+        coordinator.coordinate(
+            readingItemAt: sourceURL,
+            options: .withoutChanges,
+            error: &coordinationError
+        ) { coordinatedURL in
+            do {
+                try fileManager.copyItem(at: coordinatedURL, to: destinationURL)
+            } catch {
+                copyError = error
+            }
+        }
+
+        if let coordinationError { throw coordinationError }
+        if let copyError { throw copyError }
     }
 }

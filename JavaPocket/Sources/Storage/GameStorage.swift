@@ -16,7 +16,7 @@ enum GameStorageError: LocalizedError {
     }
 }
 
-struct GameStorage {
+struct GameStorage: @unchecked Sendable {
     private let fileManager: FileManager
     let gamesDirectory: URL
 

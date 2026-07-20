@@ -77,10 +77,18 @@ struct GameLibraryView: View {
                 allowsMultipleSelection: true,
                 onCompletion: handleImport
             )
-            .alert("导入失败", isPresented: importErrorBinding) {
-                Button("好", role: .cancel) { library.importError = nil }
+            .overlay {
+                if library.isImporting {
+                    ImportProgressView()
+                }
+            }
+            .alert(importAlertTitle, isPresented: importFeedbackBinding) {
+                Button("好", role: .cancel) {
+                    library.importError = nil
+                    library.importNotice = nil
+                }
             } message: {
-                Text(library.importError ?? "未知错误")
+                Text(library.importError ?? library.importNotice ?? "")
             }
         }
     }
@@ -99,11 +107,20 @@ struct GameLibraryView: View {
         }
     }
 
-    private var importErrorBinding: Binding<Bool> {
+    private var importFeedbackBinding: Binding<Bool> {
         Binding(
-            get: { library.importError != nil },
-            set: { if !$0 { library.importError = nil } }
+            get: { library.importError != nil || library.importNotice != nil },
+            set: {
+                if !$0 {
+                    library.importError = nil
+                    library.importNotice = nil
+                }
+            }
         )
+    }
+
+    private var importAlertTitle: String {
+        library.importError == nil ? "导入完成" : "导入失败"
     }
 
     private func presentImporter() { isImporterPresented = true }
@@ -162,6 +179,18 @@ private struct EmptyLibraryView: View {
     }
 }
 
+private struct ImportProgressView: View {
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.18).ignoresSafeArea()
+            ProgressView("正在导入 JAR…")
+                .padding(.horizontal, 24)
+                .padding(.vertical, 18)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+        }
+    }
+}
+
 private struct GameGridCard: View {
     @EnvironmentObject private var library: GameLibraryStore
     let game: GameRecord
@@ -210,5 +239,8 @@ private struct GameListRow: View {
 }
 
 private extension UTType {
-    static let javaArchive = UTType(filenameExtension: "jar") ?? .data
+    static let javaArchive = UTType(
+        exportedAs: "com.javapocket.j2me-archive",
+        conformingTo: .zip
+    )
 }
