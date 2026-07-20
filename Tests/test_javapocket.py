@@ -75,6 +75,15 @@ class JavaPocketProjectTests(unittest.TestCase):
         self.assertIn("isImporting", store)
         self.assertIn("正在导入 JAR", library)
 
+    def test_files_shared_games_folder_discovers_loose_jars(self):
+        storage = (ROOT / "JavaPocket/Sources/Storage/GameStorage.swift").read_text(encoding="utf-8")
+        store = (ROOT / "JavaPocket/Sources/Library/GameLibraryStore.swift").read_text(encoding="utf-8")
+        app = (ROOT / "JavaPocket/Sources/App/JavaPocketApp.swift").read_text(encoding="utf-8")
+        self.assertIn("func looseJARs()", storage)
+        self.assertIn("func consumeLooseJAR", storage)
+        self.assertIn("storage.looseJARs()", store)
+        self.assertIn("scenePhase", app)
+
     def test_j2me_runtime_assets_and_api(self):
         expected = {
             "System.core/freej2me/libmidi/libmidi.wasm":

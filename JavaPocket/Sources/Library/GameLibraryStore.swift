@@ -57,6 +57,10 @@ final class GameLibraryStore: ObservableObject {
     func reload() {
         do {
             games = try storage.loadGames()
+            let looseJARs = try storage.looseJARs()
+            if !looseJARs.isEmpty {
+                importURLs(looseJARs)
+            }
         } catch {
             importError = error.localizedDescription
         }
@@ -81,6 +85,7 @@ final class GameLibraryStore: ObservableObject {
                     } else {
                         games.append(game)
                     }
+                    try? storage.consumeLooseJAR(at: url)
                     importedCount += 1
                 } catch {
                     importError = "\(url.lastPathComponent)：\(error.localizedDescription)"

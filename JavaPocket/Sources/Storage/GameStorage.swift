@@ -18,12 +18,14 @@ enum GameStorageError: LocalizedError {
 
 struct GameStorage: @unchecked Sendable {
     private let fileManager: FileManager
+    let documentsDirectory: URL
     let gamesDirectory: URL
 
     init(fileManager: FileManager = .default, documentsDirectory: URL? = nil) {
         self.fileManager = fileManager
         let documents = documentsDirectory
             ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        self.documentsDirectory = documents
         gamesDirectory = documents.appendingPathComponent("Games", isDirectory: true)
     }
 
@@ -82,6 +84,29 @@ struct GameStorage: @unchecked Sendable {
             return record
         }
         .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    func looseJARs() throws -> [URL] {
+        try prepare()
+        return try [documentsDirectory, gamesDirectory]
+            .flatMap { directory in
+                try fileManager.contentsOfDirectory(
+                    at: directory,
+                    includingPropertiesForKeys: [.isRegularFileKey],
+                    options: [.skipsHiddenFiles]
+                )
+            }
+            .filter { url in
+                guard url.pathExtension.lowercased() == "jar" else { return false }
+                return (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+            }
+    }
+
+    func consumeLooseJAR(at url: URL) throws {
+        let parent = url.deletingLastPathComponent().standardizedFileURL
+        let allowedParents = [documentsDirectory, gamesDirectory].map(\.standardizedFileURL)
+        guard allowedParents.contains(parent), fileManager.fileExists(atPath: url.path) else { return }
+        try fileManager.removeItem(at: url)
     }
 
     func write(_ game: GameRecord) throws {
