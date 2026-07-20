@@ -17,6 +17,7 @@ final class J2MEView: UIView {
     private var saveCompletion: ((Bool) -> Void)?
     private lazy var networkBridge = J2MENetworkBridge(webView: webView)
     private var readinessAttempts = 0
+    private var modifierValueType = ModifierValueType.int32
 
     private lazy var webView: WKWebView = {
         let configuration = WKWebViewConfiguration()
@@ -89,6 +90,52 @@ final class J2MEView: UIView {
     func setSpeed(_ multiplier: Double) {
         let value = String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), multiplier)
         evaluate("if (window.j2meAPI && window.j2meAPI.setSpeed) window.j2meAPI.setSpeed(\(value));")
+    }
+
+    func modifierFirstScan(type: ModifierValueType, value: Double) async throws -> ModifierScanPage {
+        modifierValueType = type
+        return try await modifierPage(
+            "window.j2meModifier.firstScan('\(type.rawValue)', \(Self.jsNumber(value)))",
+            type: type
+        )
+    }
+
+    func modifierRefine(filter: ModifierFilter, value: Double) async throws -> ModifierScanPage {
+        try await modifierPage(
+            "window.j2meModifier.refine('\(filter.rawValue)', \(Self.jsNumber(value)))",
+            type: modifierValueType
+        )
+    }
+
+    func modifierRefresh() async throws -> ModifierScanPage {
+        try await modifierPage("window.j2meModifier.refresh()", type: modifierValueType)
+    }
+
+    func modifierWrite(candidate: ModifierCandidate, value: Double, freeze: Bool) async throws -> ModifierScanPage {
+        guard let address = candidate.address else { throw DataModifierError.candidateMissing }
+        modifierValueType = candidate.type
+        return try await modifierPage(
+            "window.j2meModifier.write('\(candidate.type.rawValue)', \(address), \(Self.jsNumber(value)), \(freeze))",
+            type: candidate.type
+        )
+    }
+
+    func modifierReset() async throws {
+        _ = try await modifierPage("window.j2meModifier.reset()", type: modifierValueType)
+    }
+
+    func modifierScanSave(type: ModifierValueType, value: Double) async throws -> ModifierScanPage {
+        let url = storage.rmsURL(for: game.id)
+        return try await Task.detached(priority: .userInitiated) {
+            try SavedDataModifier().scan(url: url, type: type, value: value)
+        }.value
+    }
+
+    func modifierWriteSave(candidate: ModifierCandidate, value: Double) async throws {
+        let url = storage.rmsURL(for: game.id)
+        try await Task.detached(priority: .userInitiated) {
+            try SavedDataModifier().write(url: url, candidate: candidate, value: value)
+        }.value
     }
 
     var hasSave: Bool {
@@ -206,6 +253,60 @@ final class J2MEView: UIView {
         webView.evaluateJavaScript(script) { [weak self] _, error in
             if let error { self?.onError?(error.localizedDescription) }
         }
+    }
+
+    private func modifierPage(_ expression: String, type: ModifierValueType) async throws -> ModifierScanPage {
+        guard isRuntimeReady else { throw DataModifierError.runtimeUnavailable }
+        let script = """
+        if (!window.j2meModifier) throw new Error('Data modifier unavailable');
+        return \(expression);
+        """
+        let raw: Any = try await withCheckedThrowingContinuation { continuation in
+            webView.callAsyncJavaScript(
+                script,
+                arguments: [:],
+                in: nil,
+                contentWorld: .page
+            ) { result in
+                switch result {
+                case .success(let value): continuation.resume(returning: value)
+                case .failure(let error): continuation.resume(throwing: error)
+                }
+            }
+        }
+        return try Self.decodeModifierPage(raw, type: type)
+    }
+
+    private static func decodeModifierPage(_ raw: Any, type: ModifierValueType) throws -> ModifierScanPage {
+        guard let payload = raw as? [String: Any],
+              let rows = payload["results"] as? [[String: Any]]
+        else { throw DataModifierError.invalidResponse }
+
+        let candidates = rows.compactMap { row -> ModifierCandidate? in
+            guard let address = (row["address"] as? NSNumber)?.intValue,
+                  let value = (row["value"] as? NSNumber)?.doubleValue
+            else { return nil }
+            return ModifierCandidate(
+                id: row["id"] as? String ?? "\(type.rawValue):\(address)",
+                type: type,
+                address: address,
+                source: nil,
+                offset: nil,
+                endian: nil,
+                value: value,
+                isFrozen: (row["frozen"] as? NSNumber)?.boolValue ?? false
+            )
+        }
+        return ModifierScanPage(
+            total: (payload["total"] as? NSNumber)?.intValue ?? candidates.count,
+            truncated: (payload["truncated"] as? NSNumber)?.boolValue ?? false,
+            results: candidates
+        )
+    }
+
+    private static func jsNumber(_ value: Double) -> String {
+        guard value.isFinite else { return "0" }
+        return String(format: "%.17g", locale: Locale(identifier: "en_US_POSIX"), value)
     }
 
     private static func jsString(_ value: String) -> String {

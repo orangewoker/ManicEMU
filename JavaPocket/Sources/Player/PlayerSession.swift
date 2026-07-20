@@ -7,6 +7,7 @@ final class PlayerSession: ObservableObject {
     @Published var isMuted = false
     @Published var isFastForwarding = false
     @Published private(set) var hasSave = false
+    @Published var isModifierPresented = false
 
     weak var emulatorView: J2MEView?
 
@@ -32,6 +33,46 @@ final class PlayerSession: ObservableObject {
     func toggleFastForward() {
         isFastForwarding.toggle()
         emulatorView?.setSpeed(isFastForwarding ? 2 : 1)
+    }
+
+    func toggleModifier() {
+        guard isReady else { return }
+        isModifierPresented.toggle()
+    }
+
+    func modifierFirstScan(type: ModifierValueType, value: Double) async throws -> ModifierScanPage {
+        guard let emulatorView else { throw DataModifierError.runtimeUnavailable }
+        return try await emulatorView.modifierFirstScan(type: type, value: value)
+    }
+
+    func modifierRefine(filter: ModifierFilter, value: Double) async throws -> ModifierScanPage {
+        guard let emulatorView else { throw DataModifierError.runtimeUnavailable }
+        return try await emulatorView.modifierRefine(filter: filter, value: value)
+    }
+
+    func modifierRefresh() async throws -> ModifierScanPage {
+        guard let emulatorView else { throw DataModifierError.runtimeUnavailable }
+        return try await emulatorView.modifierRefresh()
+    }
+
+    func modifierWrite(candidate: ModifierCandidate, value: Double, freeze: Bool) async throws -> ModifierScanPage {
+        guard let emulatorView else { throw DataModifierError.runtimeUnavailable }
+        return try await emulatorView.modifierWrite(candidate: candidate, value: value, freeze: freeze)
+    }
+
+    func modifierReset() async throws {
+        guard let emulatorView else { throw DataModifierError.runtimeUnavailable }
+        try await emulatorView.modifierReset()
+    }
+
+    func modifierScanSave(type: ModifierValueType, value: Double) async throws -> ModifierScanPage {
+        guard let emulatorView else { throw DataModifierError.runtimeUnavailable }
+        return try await emulatorView.modifierScanSave(type: type, value: value)
+    }
+
+    func modifierWriteSave(candidate: ModifierCandidate, value: Double) async throws {
+        guard let emulatorView else { throw DataModifierError.runtimeUnavailable }
+        try await emulatorView.modifierWriteSave(candidate: candidate, value: value)
     }
 
     func pause() { emulatorView?.pause() }

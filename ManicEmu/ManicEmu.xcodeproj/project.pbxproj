@@ -1036,6 +1036,7 @@
 		F86B554686AA4FD091DF9AEE /* IQKeyboardManagerSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 57C7590A2FD42C2E0093A2B3 /* IQKeyboardManagerSwift */; };
 		F9A3C32228B84AD391F34585 /* NVActivityIndicatorView in Frameworks */ = {isa = PBXBuildFile; productRef = 578E26D32FD41D9300A2749A /* NVActivityIndicatorView */; };
 		FB6047FBBCEC6589F3115055 /* PlayerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC04BB1B71C5ED225327677 /* PlayerSession.swift */; };
+		C0DEC0DE0000000000000042 /* DataModifierView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000041 /* DataModifierView.swift */; };
 		FDD0064DAC7645118F826ED7 /* Closures in Frameworks */ = {isa = PBXBuildFile; productRef = 578E231F2FD288C600A2749A /* Closures */; };
 /* End PBXBuildFile section */
 
@@ -1716,6 +1717,7 @@
 		6DE040F6B747F4323F074F4B /* GameArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GameArtworkView.swift; path = ../JavaPocket/Sources/Library/GameArtworkView.swift; sourceTree = SOURCE_ROOT; };
 		779F4ADBB9159E0A1375AF99 /* NokiaControllerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NokiaControllerView.swift; path = ../JavaPocket/Sources/Controller/NokiaControllerView.swift; sourceTree = SOURCE_ROOT; };
 		7DC04BB1B71C5ED225327677 /* PlayerSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlayerSession.swift; path = ../JavaPocket/Sources/Player/PlayerSession.swift; sourceTree = SOURCE_ROOT; };
+		C0DEC0DE0000000000000041 /* DataModifierView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DataModifierView.swift; path = ../JavaPocket/Sources/Modifier/DataModifierView.swift; sourceTree = SOURCE_ROOT; };
 		9C3943DC80C9975CA44D7D10 /* JARManifestParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = JARManifestParser.swift; path = ../JavaPocket/Sources/Import/JARManifestParser.swift; sourceTree = SOURCE_ROOT; };
 		9E394899968A08569E6F999D /* CustomControllerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CustomControllerView.swift; path = ../JavaPocket/Sources/Controller/CustomControllerView.swift; sourceTree = SOURCE_ROOT; };
 		A392D5632E96682600F920E7 /* DisabledTapSwitch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisabledTapSwitch.swift; sourceTree = "<group>"; };
@@ -3150,6 +3152,7 @@
 				A8E2431CB43965C0AE62A1E9 /* GameLibraryView.swift */,
 				09BD48979F362C1E80695C09 /* J2MEContainerView.swift */,
 				7DC04BB1B71C5ED225327677 /* PlayerSession.swift */,
+				C0DEC0DE0000000000000041 /* DataModifierView.swift */,
 				E3804671A459FCFB6A97E29A /* PlayerView.swift */,
 				BAE14434BA205E261008CA55 /* GameRecord.swift */,
 				C81E421EBB4057B65AB51C1E /* GameStorage.swift */,
@@ -4303,6 +4306,7 @@
 				EE9B4D2986A02BC27203448A /* GameLibraryView.swift in Sources */,
 				DBB74FC09A810A59521F6566 /* J2MEContainerView.swift in Sources */,
 				FB6047FBBCEC6589F3115055 /* PlayerSession.swift in Sources */,
+				C0DEC0DE0000000000000042 /* DataModifierView.swift in Sources */,
 				08754110A492109C21018ECE /* PlayerView.swift in Sources */,
 				D23E4AAD88A3B2320ABB3B26 /* GameRecord.swift in Sources */,
 				F4184AD0B9AF08B06B2ECA26 /* GameStorage.swift in Sources */,
@@ -4451,7 +4455,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../JavaPocket/Resources/Info.plist;
@@ -5265,7 +5269,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../JavaPocket/Resources/Info.plist;

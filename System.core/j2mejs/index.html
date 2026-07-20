@@ -837,6 +837,158 @@
       console.log('[iOS] Speed set to ' + multiplier + 'x');
     }
 
+    // Runtime data modifier. It scans the J2meJS linear heap without pausing
+    // the MIDlet, supports successive comparisons, direct writes and frozen
+    // values. Addresses are byte offsets in ASM.buffer.
+    var _modifierSearch = null;
+    var _modifierFrozen = Object.create(null);
+    var _MODIFIER_MAX_MATCHES = 250000;
+    var _MODIFIER_VISIBLE_MATCHES = 250;
+
+    function _modifierType(type) {
+      switch (type) {
+        case 'i8':  return { view: ASM.HEAP8, bytes: 1, float: false };
+        case 'i16': return { view: ASM.HEAP16, bytes: 2, float: false };
+        case 'f32': return { view: ASM.HEAPF32, bytes: 4, float: true };
+        default:    return { view: ASM.HEAP32, bytes: 4, float: false, type: 'i32' };
+      }
+    }
+
+    function _modifierEqual(a, b, isFloat) {
+      if (!isFloat) return a === b;
+      var tolerance = Math.max(0.0001, Math.abs(b) * 0.00001);
+      return Math.abs(a - b) <= tolerance;
+    }
+
+    function _modifierPage() {
+      if (!_modifierSearch) return { total: 0, truncated: false, results: [] };
+      var info = _modifierType(_modifierSearch.type);
+      var count = Math.min(_modifierSearch.indices.length, _MODIFIER_VISIBLE_MATCHES);
+      var results = new Array(count);
+      for (var i = 0; i < count; i++) {
+        var index = _modifierSearch.indices[i];
+        var address = index * info.bytes;
+        var key = _modifierSearch.type + ':' + address;
+        results[i] = {
+          id: key,
+          address: address,
+          value: Number(info.view[index]),
+          frozen: Object.prototype.hasOwnProperty.call(_modifierFrozen, key)
+        };
+      }
+      return {
+        total: _modifierSearch.indices.length,
+        truncated: !!_modifierSearch.truncated,
+        results: results
+      };
+    }
+
+    function _modifierFirstScan(type, target) {
+      var info = _modifierType(type);
+      var indices = [], previous = [], truncated = false;
+      target = Number(target);
+      // Scan in chunks so a 128 MB J2ME heap cannot block rendering or key
+      // input for several seconds on an iPhone. callAsyncJavaScript awaits
+      // this Promise on the Swift side.
+      return new Promise(function(resolve, reject) {
+        var index = 0;
+        var chunkSize = 750000;
+        function scanChunk() {
+          try {
+            var end = Math.min(index + chunkSize, info.view.length);
+            for (; index < end; index++) {
+              var value = Number(info.view[index]);
+              if (!Number.isFinite(value)) continue;
+              if (_modifierEqual(value, target, info.float)) {
+                indices.push(index);
+                previous.push(value);
+                if (indices.length >= _MODIFIER_MAX_MATCHES) {
+                  truncated = true;
+                  break;
+                }
+              }
+            }
+            if (truncated || index >= info.view.length) {
+              _modifierSearch = { type: type, indices: indices, previous: previous, truncated: truncated };
+              resolve(_modifierPage());
+            } else {
+              setTimeout(scanChunk, 0);
+            }
+          } catch (error) {
+            reject(error);
+          }
+        }
+        scanChunk();
+      });
+    }
+
+    function _modifierRefine(mode, target) {
+      if (!_modifierSearch) return _modifierPage();
+      var info = _modifierType(_modifierSearch.type);
+      var nextIndices = [], nextPrevious = [];
+      target = Number(target);
+      for (var i = 0; i < _modifierSearch.indices.length; i++) {
+        var index = _modifierSearch.indices[i];
+        var current = Number(info.view[index]);
+        var previous = _modifierSearch.previous[i];
+        if (!Number.isFinite(current)) continue;
+        var keep = false;
+        switch (mode) {
+          case 'changed': keep = !_modifierEqual(current, previous, info.float); break;
+          case 'unchanged': keep = _modifierEqual(current, previous, info.float); break;
+          case 'increased': keep = current > previous; break;
+          case 'decreased': keep = current < previous; break;
+          default: keep = _modifierEqual(current, target, info.float); break;
+        }
+        if (keep) {
+          nextIndices.push(index);
+          nextPrevious.push(current);
+        }
+      }
+      _modifierSearch.indices = nextIndices;
+      _modifierSearch.previous = nextPrevious;
+      return _modifierPage();
+    }
+
+    function _modifierWrite(type, address, value, freeze) {
+      var info = _modifierType(type);
+      address = Number(address);
+      var index = Math.floor(address / info.bytes);
+      if (index < 0 || index >= info.view.length || address % info.bytes !== 0) {
+        throw new Error('Invalid memory address');
+      }
+      value = Number(value);
+      info.view[index] = value;
+      var key = type + ':' + address;
+      if (freeze) _modifierFrozen[key] = { type: type, address: address, value: value };
+      else delete _modifierFrozen[key];
+      return _modifierPage();
+    }
+
+    function _modifierReset() {
+      _modifierSearch = null;
+      return _modifierPage();
+    }
+
+    setInterval(function() {
+      Object.keys(_modifierFrozen).forEach(function(key) {
+        var item = _modifierFrozen[key];
+        try {
+          var info = _modifierType(item.type);
+          var index = Math.floor(item.address / info.bytes);
+          if (index >= 0 && index < info.view.length) info.view[index] = item.value;
+        } catch(e) {}
+      });
+    }, 100);
+
+    window.j2meModifier = {
+      firstScan: _modifierFirstScan,
+      refine: _modifierRefine,
+      refresh: _modifierPage,
+      write: _modifierWrite,
+      reset: _modifierReset
+    };
+
     window.j2me = {
       openJar: _openJar,
       openJarFromURL: _openJarFromURL,

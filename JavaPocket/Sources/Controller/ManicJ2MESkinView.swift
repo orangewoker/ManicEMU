@@ -54,6 +54,38 @@ struct ManicJ2MESkinView: View {
                 .scaleEffect(x: scaleX, y: scaleY, anchor: .topLeading)
                 .frame(width: fullSize.width, height: fullSize.height, alignment: .topLeading)
 
+                if session.isModifierPresented {
+                    let isLandscape = fullSize.width > fullSize.height
+                    let panelWidth = isLandscape ? min(fullSize.width * 0.62, 520) : fullSize.width - 24
+                    let lowerAreaHeight = fullSize.height - layout.screen.maxY * scaleY - 12
+                    let panelHeight = isLandscape
+                        ? fullSize.height - 28
+                        : min(max(lowerAreaHeight, 280), fullSize.height * 0.56)
+
+                    DataModifierView(session: session)
+                        .frame(width: panelWidth, height: panelHeight)
+                        .padding(.bottom, 10)
+                        .frame(width: fullSize.width, height: fullSize.height, alignment: .bottom)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .zIndex(4)
+                }
+
+                Button(action: session.toggleModifier) {
+                    Image(systemName: "wrench.fill")
+                        .font(.system(size: 23, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 54, height: 54)
+                        .background(Color(red: 0.57, green: 0.04, blue: 0.04).opacity(0.92))
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(.white.opacity(0.24), lineWidth: 2))
+                }
+                .disabled(!session.isReady)
+                .opacity(session.isReady ? 1 : 0.5)
+                .padding(.top, max(proxy.safeAreaInsets.top + 8, 18))
+                .padding(.leading, 16)
+                .accessibilityLabel("数据修改器")
+                .zIndex(5)
+
                 Button(action: onExit) {
                     Image(systemName: "xmark")
                         .font(.system(size: 24, weight: .bold))
@@ -66,7 +98,9 @@ struct ManicJ2MESkinView: View {
                 .padding(.top, max(proxy.safeAreaInsets.top + 8, 18))
                 .padding(.trailing, 16)
                 .frame(maxWidth: .infinity, alignment: .trailing)
+                .zIndex(5)
             }
+            .animation(.easeInOut(duration: 0.22), value: session.isModifierPresented)
             .frame(width: fullSize.width, height: fullSize.height)
             .offset(x: -proxy.safeAreaInsets.leading, y: -proxy.safeAreaInsets.top)
         }

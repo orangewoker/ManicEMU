@@ -59,7 +59,7 @@ class JavaPocketProjectTests(unittest.TestCase):
         self.assertIn("jar", json.dumps(info))
 
     def test_feature_modules_and_storage_contract(self):
-        for feature in ("App", "Library", "Import", "Player", "Controller", "Emulator", "Storage"):
+        for feature in ("App", "Library", "Import", "Player", "Controller", "Emulator", "Storage", "Modifier"):
             self.assertTrue((ROOT / "JavaPocket/Sources" / feature).is_dir(), feature)
         storage = (ROOT / "JavaPocket/Sources/Storage/GameStorage.swift").read_text(encoding="utf-8")
         for value in ('"Games"', '"game.jar"', '"metadata.json"', '"save"', '"rms.zip"'):
@@ -159,6 +159,32 @@ class JavaPocketProjectTests(unittest.TestCase):
         self.assertIn("loadLastSave", session)
         runtime = (ROOT / "JavaPocket/Sources/Emulator/J2MEView.swift").read_text(encoding="utf-8")
         self.assertIn("j2meAPI.setSpeed", runtime)
+
+    def test_live_memory_and_rms_data_modifier(self):
+        modifier = (ROOT / "JavaPocket/Sources/Modifier/DataModifierView.swift").read_text(encoding="utf-8")
+        for value in (
+            "实时数据", "存档数据", "继续排查", "数值增加了", "数值减少了",
+            "数值发生变化", "数值没有变化", "锁定数值", "SavedDataModifier",
+        ):
+            self.assertIn(value, modifier)
+
+        skin = (ROOT / "JavaPocket/Sources/Controller/ManicJ2MESkinView.swift").read_text(encoding="utf-8")
+        self.assertIn('Image(systemName: "wrench.fill")', skin)
+        self.assertIn("DataModifierView(session: session)", skin)
+        self.assertIn('accessibilityLabel("数据修改器")', skin)
+
+        runtime = (ROOT / "JavaPocket/Sources/Emulator/J2MEView.swift").read_text(encoding="utf-8")
+        self.assertIn("callAsyncJavaScript", runtime)
+        self.assertIn("modifierFirstScan", runtime)
+        self.assertIn("modifierWriteSave", runtime)
+
+        j2mejs = (ROOT / "System.core/j2mejs/index.html").read_text(encoding="utf-8")
+        for api in ("window.j2meModifier", "firstScan", "refine", "refresh", "write", "reset"):
+            self.assertIn(api, j2mejs)
+        self.assertIn("setTimeout(scanChunk, 0)", j2mejs)
+
+        project = (ROOT / "ManicEmu/ManicEmu.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+        self.assertIn("DataModifierView.swift in Sources", project)
 
     def test_xcode_project_isolated_target(self):
         project = (ROOT / "ManicEmu/ManicEmu.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
