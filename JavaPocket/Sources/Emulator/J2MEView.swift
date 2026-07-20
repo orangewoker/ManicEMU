@@ -261,19 +261,12 @@ final class J2MEView: UIView {
         if (!window.j2meModifier) throw new Error('Data modifier unavailable');
         return \(expression);
         """
-        let raw: Any = try await withCheckedThrowingContinuation { continuation in
-            webView.callAsyncJavaScript(
-                script,
-                arguments: [:],
-                in: nil,
-                contentWorld: .page
-            ) { result in
-                switch result {
-                case .success(let value): continuation.resume(returning: value)
-                case .failure(let error): continuation.resume(throwing: error)
-                }
-            }
-        }
+        let raw = try await webView.callAsyncJavaScript(
+            script,
+            arguments: [:],
+            in: nil,
+            contentWorld: .page
+        )
         return try Self.decodeModifierPage(raw, type: type)
     }
 
