@@ -159,7 +159,14 @@ private struct ManicQuickControls: View {
         .opacity(session.isReady ? 1 : 0.35)
         .onChange(of: session.isReady) { ready in
             guard ready, loadState == .loading else { return }
-            loadState = .success
+            if let outcome = session.autoContinueOutcome {
+                loadState = outcome ? .success : .failure
+                resetLoadStateLater()
+            }
+        }
+        .onChange(of: session.autoContinueOutcome) { outcome in
+            guard let outcome, session.isReady, loadState == .loading else { return }
+            loadState = outcome ? .success : .failure
             resetLoadStateLater()
         }
     }

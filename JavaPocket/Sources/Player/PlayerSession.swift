@@ -8,6 +8,7 @@ final class PlayerSession: ObservableObject {
     @Published var isFastForwarding = false
     @Published private(set) var hasSave = false
     @Published var isModifierPresented = false
+    @Published private(set) var autoContinueOutcome: Bool?
 
     weak var emulatorView: J2MEView?
 
@@ -19,6 +20,10 @@ final class PlayerSession: ObservableObject {
             self?.errorMessage = nil
         }
         view.onError = { [weak self] in self?.errorMessage = $0 }
+        view.onSaveAvailable = { [weak self] in self?.hasSave = true }
+        view.onAutoContinueComplete = { [weak self] success in
+            self?.autoContinueOutcome = success
+        }
     }
 
     func press(_ button: J2MEButton, pressed: Bool) {
@@ -93,6 +98,7 @@ final class PlayerSession: ObservableObject {
         guard let emulatorView, emulatorView.hasSave else { return false }
         isReady = false
         errorMessage = nil
+        autoContinueOutcome = nil
         let started = emulatorView.loadLastSave()
         if !started { isReady = true }
         return started

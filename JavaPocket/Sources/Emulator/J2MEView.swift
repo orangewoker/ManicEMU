@@ -6,6 +6,8 @@ final class J2MEView: UIView {
     var onReady: (() -> Void)?
     var onError: ((String) -> Void)?
     var onExit: (() -> Void)?
+    var onSaveAvailable: (() -> Void)?
+    var onAutoContinueComplete: ((Bool) -> Void)?
 
     private let game: GameRecord
     private let storage: GameStorage
@@ -15,6 +17,7 @@ final class J2MEView: UIView {
     private var isRuntimeReady = false
     private var didOpenGame = false
     private var saveCompletion: ((Bool) -> Void)?
+    private var saveTimeoutWorkItem: DispatchWorkItem?
     private lazy var networkBridge = J2MENetworkBridge(webView: webView)
     private var readinessAttempts = 0
     private var modifierValueType = ModifierValueType.int32
@@ -160,7 +163,17 @@ final class J2MEView: UIView {
     }
 
     func save(completion: ((Bool) -> Void)? = nil) {
+        saveTimeoutWorkItem?.cancel()
+        if let pending = saveCompletion { pending(false) }
         saveCompletion = completion
+        let timeout = DispatchWorkItem { [weak self] in
+            guard let self, let completion = self.saveCompletion else { return }
+            self.saveCompletion = nil
+            self.onError?("存档导出超时，请重试。")
+            completion(false)
+        }
+        saveTimeoutWorkItem = timeout
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: timeout)
         evaluate("""
         (function() {
             if (!window.j2meAPI || !window.j2meAPI.getSaveData) {
@@ -201,8 +214,7 @@ final class J2MEView: UIView {
         didOpenGame = true
 
         let saveBase64: String
-        if shouldLoadSave,
-           let data = try? Data(contentsOf: storage.rmsURL(for: game.id)) {
+        if let data = try? Data(contentsOf: storage.rmsURL(for: game.id)) {
             saveBase64 = Self.jsString(data.base64EncodedString())
         } else {
             saveBase64 = "null"
@@ -234,6 +246,9 @@ final class J2MEView: UIView {
               // Wait until IndexedDB contains the RMS snapshot before the
               // MIDlet starts and opens its RecordStore.
               await window.j2meAPI.loadSaveData(\(saveBase64));
+            }
+            if (\(shouldLoadSave) && window.j2meAPI && window.j2meAPI.armAutoContinue) {
+              window.j2meAPI.armAutoContinue();
             }
             window.j2me.openJar(bytes, \(Self.jsString(game.jarFileName)),
                                 \(Self.jsString(screen)), \(game.isScreenRotationEnabled));
@@ -339,8 +354,12 @@ final class J2MEView: UIView {
             }
         case "saveDataWritten":
             persistBase64(payload["data"] as? String)
+        case "autoContinueComplete":
+            onAutoContinueComplete?(payload["success"] as? Bool ?? false)
         case "getSaveDataResult":
             let success = persistBase64(payload["base64"] as? String)
+            saveTimeoutWorkItem?.cancel()
+            saveTimeoutWorkItem = nil
             saveCompletion?(success)
             saveCompletion = nil
         case "exit":
@@ -360,6 +379,7 @@ final class J2MEView: UIView {
         guard let value, let data = Data(base64Encoded: value) else { return false }
         do {
             try storage.writeRMS(data, for: game.id)
+            onSaveAvailable?()
             return true
         } catch {
             onError?("存档写入失败：\(error.localizedDescription)")

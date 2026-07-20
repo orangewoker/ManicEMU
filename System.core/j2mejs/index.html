@@ -462,6 +462,7 @@
           typeof jvm !== 'undefined') {
         _hookScheduler();
         _hookSaveNotification();
+        _hookAutoContinueText();
         _hookSpeedControl();
         callback();
         return;
@@ -557,6 +558,9 @@
 
     function _getSaveData() {
       if (typeof SaveManager === 'undefined' || typeof JSZip === 'undefined') return Promise.resolve(null);
+      // RMS files may still be dirty in an open RecordStore. exportStore only
+      // syncs the Store map, so flush open file buffers into that map first.
+      if (typeof myflushAll === 'function') myflushAll();
       return new Promise(function(resolve) {
         SaveManager.exportSaveToZip(config.midletClassName || 'game', function(blob) {
           if (!blob) { resolve(null); return; }
@@ -723,6 +727,7 @@
       if (typeof SaveManager === 'undefined' || typeof JSZip === 'undefined') return;
 
       _saveNotifyBusy = true;
+      if (typeof myflushAll === 'function') myflushAll();
       SaveManager.exportSaveToZip(config.midletClassName || 'game', function(blob) {
         if (!blob) {
           _saveNotifyBusy = false;
@@ -922,6 +927,127 @@
       });
     }
 
+    // Continue-game assistant. J2meJS cannot serialize a live JavaScript call
+    // stack, so a durable save is RMS rather than a raw VM snapshot. When the
+    // caller explicitly requests Continue/Load, watch Java ME drawString calls
+    // for a visible “continue/load progress” menu item and select it. No key is
+    // sent unless a matching item is actually drawn by the MIDlet.
+    var _autoContinueTextHooked = false;
+    var _autoContinueArmed = false;
+    var _autoContinueDeadline = 0;
+    var _autoContinueTimer = null;
+    var _autoContinueText = [];
+
+    function _captureAutoContinueText(text, x, y) {
+      if (!_autoContinueArmed || text === null || text === undefined) return;
+      text = String(text).replace(/^\s+|\s+$/g, '');
+      if (!text) return;
+      var now = Date.now();
+      _autoContinueText.push({ text: text, x: Number(x) || 0, y: Number(y) || 0, time: now });
+      if (_autoContinueText.length > 240) _autoContinueText.splice(0, _autoContinueText.length - 240);
+    }
+
+    function _hookAutoContinueText() {
+      if (_autoContinueTextHooked || typeof Native === 'undefined' || typeof J2ME === 'undefined') return;
+      _autoContinueTextHooked = true;
+
+      function wrap(key, decoder) {
+        var original = Native[key];
+        if (typeof original !== 'function') return;
+        Native[key] = function() {
+          try {
+            var item = decoder(arguments);
+            if (item) _captureAutoContinueText(item.text, item.x, item.y);
+          } catch(e) {}
+          return original.apply(this, arguments);
+        };
+      }
+
+      wrap('javax/microedition/lcdui/Graphics.drawString.(Ljava/lang/String;III)V', function(a) {
+        return { text: J2ME.fromStringAddr(a[1]), x: a[2], y: a[3] };
+      });
+      wrap('javax/microedition/lcdui/Graphics.drawSubstring.(Ljava/lang/String;IIIII)V', function(a) {
+        var value = J2ME.fromStringAddr(a[1]);
+        return { text: value && value.substr(a[2] | 0, a[3] | 0), x: a[4], y: a[5] };
+      });
+      wrap('javax/microedition/lcdui/Graphics.drawChars.([CIIIII)V', function(a) {
+        return { text: J2ME.fromJavaChars(a[1], a[2], a[3]), x: a[4], y: a[5] };
+      });
+    }
+
+    function _syntheticKey(code) {
+      if (typeof MIDP === 'undefined') return;
+      MIDP.sendKeyPress(code);
+      setTimeout(function() { try { MIDP.sendKeyRelease(code); } catch(e) {} }, 65);
+    }
+
+    function _finishAutoContinue(success, message) {
+      _autoContinueArmed = false;
+      if (_autoContinueTimer) clearInterval(_autoContinueTimer);
+      _autoContinueTimer = null;
+      try {
+        window.webkit.messageHandlers.j2me.postMessage({
+          type: 'autoContinueComplete', success: !!success, message: message || ''
+        });
+      } catch(e) {}
+    }
+
+    function _tryAutoContinue() {
+      if (!_autoContinueArmed) return;
+      var now = Date.now();
+      if (now >= _autoContinueDeadline) {
+        _finishAutoContinue(false, '未检测到读取进度菜单');
+        return;
+      }
+
+      var recent = _autoContinueText.filter(function(item) { return now - item.time < 1800; });
+      var pattern = /(读取|载入|加载).{0,2}(进度|游戏|存档)|继续.{0,2}(游戏|进度)?|continue|load\s*(game|save)/i;
+      var target = null;
+      for (var i = recent.length - 1; i >= 0; i--) {
+        if (pattern.test(recent[i].text)) { target = recent[i]; break; }
+      }
+      if (!target) return;
+
+      // Menus normally start below the title and highlight their first row.
+      // Derive the target row from distinct text baselines instead of assuming
+      // every game places Continue on the second line.
+      var logicalHeight = Number(window.lcdHeight) || 320;
+      var minY = logicalHeight * 0.20;
+      var ys = [];
+      recent.forEach(function(item) {
+        if (item.y < minY || item.y > target.y + 3) return;
+        if (Math.abs(item.x - target.x) > (Number(window.lcdWidth) || 240) * 0.48) return;
+        if (!ys.some(function(y) { return Math.abs(y - item.y) < 4; })) ys.push(item.y);
+      });
+      ys.sort(function(a, b) { return a - b; });
+      var row = ys.findIndex(function(y) { return Math.abs(y - target.y) < 4; });
+      if (row < 0) row = 0;
+      row = Math.min(row, 6);
+
+      _autoContinueArmed = false;
+      if (_autoContinueTimer) clearInterval(_autoContinueTimer);
+      _autoContinueTimer = null;
+      for (let step = 0; step < row; step++) {
+        setTimeout(function() { _syntheticKey(-2); }, step * 170);
+      }
+      var selectDelay = row * 170 + 120;
+      setTimeout(function() { _syntheticKey(-5); }, selectDelay);
+      // Most games then show a save-slot list with the latest/first slot
+      // already selected. Confirm once more after that screen appears.
+      setTimeout(function() { _syntheticKey(-5); }, selectDelay + 950);
+      setTimeout(function() { _finishAutoContinue(true, target.text); }, selectDelay + 1250);
+    }
+
+    function _armAutoContinue() {
+      _hookAutoContinueText();
+      _autoContinueText = [];
+      _autoContinueArmed = true;
+      _autoContinueDeadline = Date.now() + 20000;
+      if (_autoContinueTimer) clearInterval(_autoContinueTimer);
+      _autoContinueTimer = setInterval(_tryAutoContinue, 180);
+      return true;
+    }
+
     function _modifierRefine(mode, target) {
       if (!_modifierSearch) return _modifierPage();
       var info = _modifierType(_modifierSearch.type);
@@ -1004,6 +1130,7 @@
       loadSaveData: _loadSaveData,
       exportSaveState: _exportSaveState,
       importSaveState: _importSaveState,
+      armAutoContinue: _armAutoContinue,
       setGameResize: function(v) { config.gameresize = v; },
       setCanvasSize: function(v) { config.canvasSize = v; },
       setScreenRotation: function(v) { config.screenRotation = v; },

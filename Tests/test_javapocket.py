@@ -92,9 +92,15 @@ class JavaPocketProjectTests(unittest.TestCase):
         self.assertIn("setConfig('fontSize'", runtime)
         self.assertIn("await window.j2meAPI.loadSaveData", runtime)
         self.assertIn("func loadLastSave()", runtime)
+        self.assertIn("window.j2meAPI.armAutoContinue", runtime)
+        self.assertIn("saveTimeoutWorkItem", runtime)
+        self.assertNotIn("if shouldLoadSave,", runtime)
         j2mejs = (ROOT / "System.core/j2mejs/index.html").read_text(encoding="utf-8")
         self.assertIn("function _loadSaveData(b64)", j2mejs)
         self.assertIn("return new Promise(function(resolve, reject)", j2mejs)
+        self.assertIn("if (typeof myflushAll === 'function') myflushAll();", j2mejs)
+        self.assertIn("function _armAutoContinue()", j2mejs)
+        self.assertIn("未检测到读取进度菜单", j2mejs)
 
     def test_files_shared_games_folder_discovers_loose_jars(self):
         storage = (ROOT / "JavaPocket/Sources/Storage/GameStorage.swift").read_text(encoding="utf-8")
