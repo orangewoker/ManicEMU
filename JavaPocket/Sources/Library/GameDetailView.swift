@@ -47,7 +47,6 @@ struct GameDetailView: View {
         .sheet(isPresented: $isJ2MESettingsPresented) {
             J2MESettingsView(gameID: gameID)
                 .presentationDetents([.large])
-                .presentationCornerRadius(28)
         }
         .confirmationDialog("删除这个游戏及其存档？", isPresented: $isDeleteConfirmationPresented) {
             Button("删除游戏", role: .destructive, action: deleteGame)
