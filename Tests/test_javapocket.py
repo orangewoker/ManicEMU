@@ -72,7 +72,10 @@ class JavaPocketProjectTests(unittest.TestCase):
         self.assertIn("NSFileCoordinator", importer)
         self.assertIn(".incoming-", importer)
         self.assertIn('exportedAs: "com.javapocket.j2me-archive"', library)
-        self.assertIn("allowedContentTypes: [.data]", library)
+        self.assertIn("UIDocumentPickerViewController", library)
+        self.assertIn("forOpeningContentTypes: [.data]", library)
+        self.assertIn("asCopy: true", library)
+        self.assertIn("allowsMultipleSelection = false", library)
         self.assertIn('pathExtension.caseInsensitiveCompare("jar")', library)
         self.assertIn("isImporting", store)
         self.assertIn("stagePickedJAR", store)
@@ -144,6 +147,12 @@ class JavaPocketProjectTests(unittest.TestCase):
         skin_source = (ROOT / "JavaPocket/Sources/Controller/ManicJ2MESkinView.swift").read_text(encoding="utf-8")
         self.assertIn("ManicDPadUIView", skin_source)
         self.assertIn("scaleEffect(x: scaleX, y: scaleY", skin_source)
+        for control in ("快速保存", "静音", "二倍速", "ManicQuickControls"):
+            self.assertIn(control, skin_source)
+        session = (ROOT / "JavaPocket/Sources/Player/PlayerSession.swift").read_text(encoding="utf-8")
+        self.assertIn("toggleFastForward", session)
+        runtime = (ROOT / "JavaPocket/Sources/Emulator/J2MEView.swift").read_text(encoding="utf-8")
+        self.assertIn("j2meAPI.setSpeed", runtime)
 
     def test_xcode_project_isolated_target(self):
         project = (ROOT / "ManicEmu/ManicEmu.xcodeproj/project.pbxproj").read_text(encoding="utf-8")

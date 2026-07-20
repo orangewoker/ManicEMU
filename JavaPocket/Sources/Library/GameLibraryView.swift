@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct GameLibraryView: View {
@@ -71,15 +72,13 @@ struct GameLibraryView: View {
                     GameDetailView(gameID: game.id)
                 }
             }
-            .fileImporter(
-                isPresented: $isImporterPresented,
-                // Files may report a JAR as public.data, public.zip-archive, or
-                // com.sun.java-archive. Filtering by our exported UTI disables
-                // otherwise valid JARs, so validate the extension after picking.
-                allowedContentTypes: [.data],
-                allowsMultipleSelection: true,
-                onCompletion: handleImport
-            )
+            .sheet(isPresented: $isImporterPresented) {
+                JARDocumentPicker(
+                    isPresented: $isImporterPresented,
+                    completion: handleImport
+                )
+                .ignoresSafeArea()
+            }
             .overlay {
                 if library.isImporting {
                     ImportProgressView()
@@ -140,6 +139,54 @@ struct GameLibraryView: View {
                 library.importPickedURLs(jars)
             }
         case .failure(let error): library.importError = error.localizedDescription
+        }
+    }
+}
+
+/// `SwiftUI.fileImporter` can fail to deliver its completion callback for a
+/// multi-selection Files sheet on some iOS versions. The UIKit picker uses
+/// copy mode and a single selection, then hands the copied URL to the app
+/// before dismissing, so tapping “Open” always starts the import.
+private struct JARDocumentPicker: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let completion: (Result<[URL], Error>) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        // Providers disagree on the JAR UTI (data/zip/java-archive), so allow
+        // data here and validate the .jar extension in `handleImport`.
+        let picker = UIDocumentPickerViewController(
+            forOpeningContentTypes: [.data],
+            asCopy: true
+        )
+        picker.delegate = context.coordinator
+        picker.allowsMultipleSelection = false
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {
+        context.coordinator.parent = self
+    }
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        var parent: JARDocumentPicker
+
+        init(parent: JARDocumentPicker) {
+            self.parent = parent
+        }
+
+        func documentPicker(
+            _ controller: UIDocumentPickerViewController,
+            didPickDocumentsAt urls: [URL]
+        ) {
+            // Stage/import synchronously while this copied picker URL is valid.
+            parent.completion(.success(urls))
+            parent.isPresented = false
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.isPresented = false
         }
     }
 }

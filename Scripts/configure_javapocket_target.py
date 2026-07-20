@@ -54,7 +54,7 @@ def main() -> None:
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         "CLANG_ENABLE_MODULES": "YES",
         "CODE_SIGN_STYLE": "Automatic",
-        "CURRENT_PROJECT_VERSION": "9",
+        "CURRENT_PROJECT_VERSION": "10",
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "NO",
         "INFOPLIST_FILE": "../JavaPocket/Resources/Info.plist",

@@ -36,6 +36,10 @@ struct ManicJ2MESkinView: View {
                     .position(x: layout.screen.midX, y: layout.screen.midY)
                     .clipped()
 
+                    ManicQuickControls(session: session)
+                        .frame(width: layout.controlBar.width, height: layout.controlBar.height)
+                        .position(x: layout.controlBar.midX, y: layout.controlBar.midY)
+
                     ManicDPadView(frame: layout.dpad, onButton: session.press)
                     ManicPDFView(name: "thumbstick.pdf")
                         .frame(width: layout.dpad.width * 0.46, height: layout.dpad.height * 0.46)
@@ -67,6 +71,72 @@ struct ManicJ2MESkinView: View {
             .offset(x: -proxy.safeAreaInsets.leading, y: -proxy.safeAreaInsets.top)
         }
         .ignoresSafeArea()
+    }
+}
+
+private struct ManicQuickControls: View {
+    @ObservedObject var session: PlayerSession
+    @State private var saveState = SaveState.idle
+
+    private enum SaveState: Equatable {
+        case idle, saving, success, failure
+    }
+
+    var body: some View {
+        HStack(spacing: 28) {
+            Button(action: quickSave) {
+                Image(systemName: saveIcon)
+                    .foregroundStyle(saveColor)
+                    .frame(width: 32, height: 30)
+            }
+            .accessibilityLabel("快速保存")
+
+            Button(action: session.toggleMute) {
+                Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .foregroundStyle(session.isMuted ? .red : .white.opacity(0.72))
+                    .frame(width: 32, height: 30)
+            }
+            .accessibilityLabel(session.isMuted ? "恢复声音" : "静音")
+
+            Button(action: session.toggleFastForward) {
+                Image(systemName: "forward.fill")
+                    .foregroundStyle(session.isFastForwarding ? .red : .white.opacity(0.72))
+                    .frame(width: 32, height: 30)
+            }
+            .accessibilityLabel(session.isFastForwarding ? "恢复正常速度" : "二倍速")
+        }
+        .font(.system(size: 15, weight: .semibold))
+        .buttonStyle(.plain)
+        .disabled(!session.isReady)
+        .opacity(session.isReady ? 1 : 0.35)
+    }
+
+    private var saveIcon: String {
+        switch saveState {
+        case .idle: "square.and.arrow.down"
+        case .saving: "hourglass"
+        case .success: "checkmark.circle.fill"
+        case .failure: "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var saveColor: Color {
+        switch saveState {
+        case .success: .green
+        case .failure: .red
+        default: .white.opacity(0.72)
+        }
+    }
+
+    private func quickSave() {
+        guard saveState != .saving else { return }
+        saveState = .saving
+        session.save { success in
+            saveState = success ? .success : .failure
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                saveState = .idle
+            }
+        }
     }
 }
 
@@ -262,6 +332,7 @@ private struct ManicSkinLayout {
     let designSize: CGSize
     let background: String
     let screen: CGRect
+    let controlBar: CGRect
     let dpad: CGRect
     let buttons: [ManicSkinItem]
 
@@ -294,6 +365,7 @@ private struct ManicSkinLayout {
         designSize: CGSize(width: 375, height: 812),
         background: "iphone_edgetoedge_portrait.pdf",
         screen: CGRect(x: 68, y: 80, width: 240, height: 320),
+        controlBar: CGRect(x: 90, y: 400, width: 196, height: 34),
         dpad: CGRect(x: 122, y: 434, width: 130, height: 130),
         buttons: [
             item("fire_button.pdf", 273, 517, 56, 22, .fire),
@@ -307,6 +379,7 @@ private struct ManicSkinLayout {
         designSize: CGSize(width: 812, height: 375),
         background: "iphone_edgetoedge_landscape.pdf",
         screen: CGRect(x: 246, y: 67, width: 320, height: 240),
+        controlBar: CGRect(x: 276, y: 307, width: 260, height: 31),
         dpad: CGRect(x: 65, y: 170, width: 130, height: 130),
         buttons: [
             item("fire_button.pdf", 654, 90, 56, 22, .fire),
@@ -320,6 +393,7 @@ private struct ManicSkinLayout {
         designSize: CGSize(width: 375, height: 667),
         background: "iphone_standard_portrait.pdf",
         screen: CGRect(x: 68, y: 42, width: 240, height: 320),
+        controlBar: CGRect(x: 90, y: 362, width: 196, height: 40),
         dpad: CGRect(x: 134.5, y: 403.5, width: 105, height: 105),
         buttons: [
             item("fire_button.pdf", 273, 474, 56, 22, .fire),
@@ -333,6 +407,7 @@ private struct ManicSkinLayout {
         designSize: CGSize(width: 667, height: 375),
         background: "iphone_standard_landscape.pdf",
         screen: CGRect(x: 173, y: 67, width: 320, height: 240),
+        controlBar: CGRect(x: 203, y: 307, width: 260, height: 31),
         dpad: CGRect(x: 27.5, y: 192.5, width: 105, height: 105),
         buttons: [
             item("fire_button.pdf", 555, 90, 56, 22, .fire),

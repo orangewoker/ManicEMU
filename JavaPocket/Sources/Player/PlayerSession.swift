@@ -5,6 +5,7 @@ final class PlayerSession: ObservableObject {
     @Published private(set) var isReady = false
     @Published private(set) var errorMessage: String?
     @Published var isMuted = false
+    @Published var isFastForwarding = false
 
     weak var emulatorView: J2MEView?
 
@@ -21,6 +22,11 @@ final class PlayerSession: ObservableObject {
     func toggleMute() {
         isMuted.toggle()
         emulatorView?.setMuted(isMuted)
+    }
+
+    func toggleFastForward() {
+        isFastForwarding.toggle()
+        emulatorView?.setSpeed(isFastForwarding ? 2 : 1)
     }
 
     func pause() { emulatorView?.pause() }

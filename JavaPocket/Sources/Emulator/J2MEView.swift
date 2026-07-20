@@ -86,6 +86,11 @@ final class J2MEView: UIView {
         evaluate("if (window.j2meAPI && window.j2meAPI.setMute) window.j2meAPI.setMute(\(muted));")
     }
 
+    func setSpeed(_ multiplier: Double) {
+        let value = String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), multiplier)
+        evaluate("if (window.j2meAPI && window.j2meAPI.setSpeed) window.j2meAPI.setSpeed(\(value));")
+    }
+
     func save(completion: ((Bool) -> Void)? = nil) {
         saveCompletion = completion
         evaluate("""
