@@ -90,6 +90,11 @@ class JavaPocketProjectTests(unittest.TestCase):
         runtime = (ROOT / "JavaPocket/Sources/Emulator/J2MEView.swift").read_text(encoding="utf-8")
         self.assertIn("classicJ2MEFontSize", runtime)
         self.assertIn("setConfig('fontSize'", runtime)
+        self.assertIn("await window.j2meAPI.loadSaveData", runtime)
+        self.assertIn("func loadLastSave()", runtime)
+        j2mejs = (ROOT / "System.core/j2mejs/index.html").read_text(encoding="utf-8")
+        self.assertIn("function _loadSaveData(b64)", j2mejs)
+        self.assertIn("return new Promise(function(resolve, reject)", j2mejs)
 
     def test_files_shared_games_folder_discovers_loose_jars(self):
         storage = (ROOT / "JavaPocket/Sources/Storage/GameStorage.swift").read_text(encoding="utf-8")
@@ -147,10 +152,11 @@ class JavaPocketProjectTests(unittest.TestCase):
         skin_source = (ROOT / "JavaPocket/Sources/Controller/ManicJ2MESkinView.swift").read_text(encoding="utf-8")
         self.assertIn("ManicDPadUIView", skin_source)
         self.assertIn("scaleEffect(x: scaleX, y: scaleY", skin_source)
-        for control in ("快速保存", "静音", "二倍速", "ManicQuickControls"):
+        for control in ("快速保存", "加载上次保存", "静音", "二倍速", "ManicQuickControls"):
             self.assertIn(control, skin_source)
         session = (ROOT / "JavaPocket/Sources/Player/PlayerSession.swift").read_text(encoding="utf-8")
         self.assertIn("toggleFastForward", session)
+        self.assertIn("loadLastSave", session)
         runtime = (ROOT / "JavaPocket/Sources/Emulator/J2MEView.swift").read_text(encoding="utf-8")
         self.assertIn("j2meAPI.setSpeed", runtime)
 

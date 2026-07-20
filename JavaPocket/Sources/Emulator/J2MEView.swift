@@ -9,7 +9,7 @@ final class J2MEView: UIView {
 
     private let game: GameRecord
     private let storage: GameStorage
-    private let shouldLoadSave: Bool
+    private var shouldLoadSave: Bool
     private let localServer = J2MELocalServer()
     private var pressedButtons: Set<J2MEButton> = []
     private var isRuntimeReady = false
@@ -91,6 +91,27 @@ final class J2MEView: UIView {
         evaluate("if (window.j2meAPI && window.j2meAPI.setSpeed) window.j2meAPI.setSpeed(\(value));")
     }
 
+    var hasSave: Bool {
+        storage.hasSave(for: game.id)
+    }
+
+    /// Restarts the runtime and imports the last persisted RMS data before the
+    /// MIDlet starts. Reloading is required because most games read RMS only
+    /// during their startup sequence.
+    @discardableResult
+    func loadLastSave() -> Bool {
+        guard hasSave else { return false }
+        guard let url = localServer.indexURL else { return false }
+        shouldLoadSave = true
+        isRuntimeReady = false
+        didOpenGame = false
+        readinessAttempts = 0
+        pressedButtons.removeAll()
+        webView.stopLoading()
+        webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData))
+        return true
+    }
+
     func save(completion: ((Bool) -> Void)? = nil) {
         saveCompletion = completion
         evaluate("""
@@ -163,7 +184,9 @@ final class J2MEView: UIView {
               window.j2meAPI.setConfig('fontSize', \(fontSize));
             }
             if (\(saveBase64) && window.j2meAPI && window.j2meAPI.loadSaveData) {
-              window.j2meAPI.loadSaveData(\(saveBase64));
+              // Wait until IndexedDB contains the RMS snapshot before the
+              // MIDlet starts and opens its RecordStore.
+              await window.j2meAPI.loadSaveData(\(saveBase64));
             }
             window.j2me.openJar(bytes, \(Self.jsString(game.jarFileName)),
                                 \(Self.jsString(screen)), \(game.isScreenRotationEnabled));

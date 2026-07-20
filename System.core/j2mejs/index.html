@@ -571,14 +571,24 @@
     }
 
     function _loadSaveData(b64) {
-      if (typeof SaveManager === 'undefined' || typeof JSZip === 'undefined') return;
-      try {
-        var raw = atob(b64), bytes = new Uint8Array(raw.length);
-        for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-        SaveManager.importSaveFromZip(new Blob([bytes], { type: 'application/zip' }), function(ok) {
-          console.log('loadSaveData:', ok ? 'OK' : 'FAIL');
-        });
-      } catch(e) { console.error('loadSaveData error:', e); }
+      return new Promise(function(resolve, reject) {
+        if (typeof SaveManager === 'undefined' || typeof JSZip === 'undefined') {
+          reject(new Error('Save engine is not ready'));
+          return;
+        }
+        try {
+          var raw = atob(b64), bytes = new Uint8Array(raw.length);
+          for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+          SaveManager.importSaveFromZip(new Blob([bytes], { type: 'application/zip' }), function(ok) {
+            console.log('loadSaveData:', ok ? 'OK' : 'FAIL');
+            if (ok) resolve(true);
+            else reject(new Error('Failed to import RMS save data'));
+          });
+        } catch(e) {
+          console.error('loadSaveData error:', e);
+          reject(e);
+        }
+      });
     }
 
     // Save state format: JSON { version: 1, saveData: <zip_b64>, screen: <png_b64> }

@@ -4,7 +4,7 @@
 
 ## 测试环境
 
-- 应用：JavaPocket 1.0.0（build 10）
+- 应用：JavaPocket 1.0.0（build 11）
 - 引擎：FreeJ2ME Web / CheerpJ 4.2
 - 构建目标：iOS 16.0+
 - 标准分辨率：128×160、176×208、176×220、240×320

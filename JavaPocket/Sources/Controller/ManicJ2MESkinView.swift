@@ -77,19 +77,33 @@ struct ManicJ2MESkinView: View {
 private struct ManicQuickControls: View {
     @ObservedObject var session: PlayerSession
     @State private var saveState = SaveState.idle
+    @State private var loadState = LoadState.idle
 
     private enum SaveState: Equatable {
         case idle, saving, success, failure
     }
 
+    private enum LoadState: Equatable {
+        case idle, loading, success, failure
+    }
+
     var body: some View {
-        HStack(spacing: 28) {
+        HStack(spacing: 18) {
             Button(action: quickSave) {
                 Image(systemName: saveIcon)
                     .foregroundStyle(saveColor)
                     .frame(width: 32, height: 30)
             }
             .accessibilityLabel("快速保存")
+
+            Button(action: quickLoad) {
+                Image(systemName: loadIcon)
+                    .foregroundStyle(loadColor)
+                    .frame(width: 32, height: 30)
+            }
+            .disabled(!session.hasSave || !session.isReady)
+            .opacity(session.hasSave ? 1 : 0.35)
+            .accessibilityLabel("加载上次保存")
 
             Button(action: session.toggleMute) {
                 Image(systemName: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
@@ -109,6 +123,11 @@ private struct ManicQuickControls: View {
         .buttonStyle(.plain)
         .disabled(!session.isReady)
         .opacity(session.isReady ? 1 : 0.35)
+        .onChange(of: session.isReady) { ready in
+            guard ready, loadState == .loading else { return }
+            loadState = .success
+            resetLoadStateLater()
+        }
     }
 
     private var saveIcon: String {
@@ -128,6 +147,23 @@ private struct ManicQuickControls: View {
         }
     }
 
+    private var loadIcon: String {
+        switch loadState {
+        case .idle: "square.and.arrow.up"
+        case .loading: "hourglass"
+        case .success: "checkmark.circle.fill"
+        case .failure: "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var loadColor: Color {
+        switch loadState {
+        case .success: .green
+        case .failure: .red
+        default: .white.opacity(0.72)
+        }
+    }
+
     private func quickSave() {
         guard saveState != .saving else { return }
         saveState = .saving
@@ -136,6 +172,21 @@ private struct ManicQuickControls: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 saveState = .idle
             }
+        }
+    }
+
+    private func quickLoad() {
+        guard loadState != .loading else { return }
+        loadState = .loading
+        if !session.loadLastSave() {
+            loadState = .failure
+            resetLoadStateLater()
+        }
+    }
+
+    private func resetLoadStateLater() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            loadState = .idle
         }
     }
 }

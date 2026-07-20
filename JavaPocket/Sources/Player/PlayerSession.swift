@@ -6,12 +6,17 @@ final class PlayerSession: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published var isMuted = false
     @Published var isFastForwarding = false
+    @Published private(set) var hasSave = false
 
     weak var emulatorView: J2MEView?
 
     func attach(_ view: J2MEView) {
         emulatorView = view
-        view.onReady = { [weak self] in self?.isReady = true }
+        hasSave = view.hasSave
+        view.onReady = { [weak self] in
+            self?.isReady = true
+            self?.errorMessage = nil
+        }
         view.onError = { [weak self] in self?.errorMessage = $0 }
     }
 
@@ -31,5 +36,24 @@ final class PlayerSession: ObservableObject {
 
     func pause() { emulatorView?.pause() }
     func resume() { emulatorView?.resume() }
-    func save(completion: ((Bool) -> Void)? = nil) { emulatorView?.save(completion: completion) }
+    func save(completion: ((Bool) -> Void)? = nil) {
+        guard let emulatorView else {
+            completion?(false)
+            return
+        }
+        emulatorView.save { [weak self] success in
+            if success { self?.hasSave = true }
+            completion?(success)
+        }
+    }
+
+    @discardableResult
+    func loadLastSave() -> Bool {
+        guard let emulatorView, emulatorView.hasSave else { return false }
+        isReady = false
+        errorMessage = nil
+        let started = emulatorView.loadLastSave()
+        if !started { isReady = true }
+        return started
+    }
 }
