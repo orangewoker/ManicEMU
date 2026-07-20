@@ -129,8 +129,16 @@ class JavaPocketProjectTests(unittest.TestCase):
         for filename in expected:
             self.assertGreater((skin / filename).stat().st_size, 1000, filename)
         settings = (ROOT / "JavaPocket/Sources/Library/J2MESettingsView.swift").read_text(encoding="utf-8")
-        for resolution in ("96, 65", "176, 208", "176, 220", "240, 320", "360, 640"):
+        for resolution in (
+            "96, 65", "96, 96", "104, 80", "128, 128", "132, 176",
+            "128, 160", "176, 208", "176, 220", "208, 208", "240, 320",
+            "320, 240", "240, 400", "352, 416", "360, 640", "640, 360",
+            "480, 800", "800, 480",
+        ):
             self.assertIn(resolution, settings)
+        self.assertIn('Button("自定义")', settings)
+        details = (ROOT / "JavaPocket/Sources/Library/GameDetailView.swift").read_text(encoding="utf-8")
+        self.assertIn('Label("分辨率设置"', details)
         player = (ROOT / "JavaPocket/Sources/Player/PlayerView.swift").read_text(encoding="utf-8")
         self.assertIn("ManicJ2MESkinView", player)
         skin_source = (ROOT / "JavaPocket/Sources/Controller/ManicJ2MESkinView.swift").read_text(encoding="utf-8")

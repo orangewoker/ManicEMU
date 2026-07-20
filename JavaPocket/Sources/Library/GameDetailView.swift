@@ -21,7 +21,7 @@ struct GameDetailView: View {
                         canContinue: library.storage.hasSave(for: game.id),
                         start: { start(game, continueGame: false) },
                         continueGame: { start(game, continueGame: true) },
-                        editController: { isJ2MESettingsPresented = true },
+                        editResolution: { isJ2MESettingsPresented = true },
                         delete: { isDeleteConfirmationPresented = true }
                     )
                 }
@@ -134,7 +134,7 @@ private struct GameActionsSection: View {
     let canContinue: Bool
     let start: () -> Void
     let continueGame: () -> Void
-    let editController: () -> Void
+    let editResolution: () -> Void
     let delete: () -> Void
 
     var body: some View {
@@ -154,8 +154,8 @@ private struct GameActionsSection: View {
             .controlSize(.large)
             .disabled(!canContinue)
 
-            Button(action: editController) {
-                Label("设置按键", systemImage: "slider.horizontal.3")
+            Button(action: editResolution) {
+                Label("分辨率设置", systemImage: "aspectratio")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)

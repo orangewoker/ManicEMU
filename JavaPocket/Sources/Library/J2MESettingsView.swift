@@ -14,7 +14,8 @@ struct J2MESettingsView: View {
     private let presets: [(Int, Int)] = [
         (96, 65), (96, 96), (104, 80), (128, 128), (132, 176),
         (128, 160), (176, 208), (176, 220), (208, 208), (240, 320),
-        (320, 240), (240, 400), (352, 416), (360, 640)
+        (320, 240), (240, 400), (352, 416), (360, 640), (640, 360),
+        (480, 800), (800, 480)
     ]
 
     var body: some View {
@@ -52,6 +53,10 @@ struct J2MESettingsView: View {
                                             width = Double(preset.0)
                                             height = Double(preset.1)
                                         }
+                                    }
+                                    Button("自定义") {
+                                        // The width and height sliders below are always
+                                        // available for custom logical resolutions.
                                     }
                                 } label: {
                                     Image(systemName: "ellipsis.circle")
