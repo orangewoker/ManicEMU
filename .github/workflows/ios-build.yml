@@ -88,6 +88,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.package.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: JavaPocket iOS ${{ steps.package.outputs.tag }}
+          body: Unsigned JavaPocket IPA for sideload re-signing.
           prerelease: true
           generate_release_notes: true
           files: ${{ steps.package.outputs.ipa }}
