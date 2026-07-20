@@ -7,7 +7,7 @@ struct GameDetailView: View {
 
     @State private var destination: PlayerDestination?
     @State private var isDeleteConfirmationPresented = false
-    @State private var isControllerEditorPresented = false
+    @State private var isJ2MESettingsPresented = false
 
     var body: some View {
         ScrollView {
@@ -21,7 +21,7 @@ struct GameDetailView: View {
                         canContinue: library.storage.hasSave(for: game.id),
                         start: { start(game, continueGame: false) },
                         continueGame: { start(game, continueGame: true) },
-                        editController: { isControllerEditorPresented = true },
+                        editController: { isJ2MESettingsPresented = true },
                         delete: { isDeleteConfirmationPresented = true }
                     )
                 }
@@ -44,10 +44,10 @@ struct GameDetailView: View {
         .fullScreenCover(item: $destination) { destination in
             PlayerView(gameID: destination.gameID, continueGame: destination.continueGame)
         }
-        .sheet(isPresented: $isControllerEditorPresented) {
-            if let game = library.record(for: gameID) {
-                ControllerEditorView(game: game)
-            }
+        .sheet(isPresented: $isJ2MESettingsPresented) {
+            J2MESettingsView(gameID: gameID)
+                .presentationDetents([.large])
+                .presentationCornerRadius(28)
         }
         .confirmationDialog("删除这个游戏及其存档？", isPresented: $isDeleteConfirmationPresented) {
             Button("删除游戏", role: .destructive, action: deleteGame)
@@ -103,7 +103,7 @@ private struct GameMetadataSection: View {
             Divider().padding(.leading, 48)
             MetadataRow(icon: "building.2", title: "厂商", value: game.vendor)
             Divider().padding(.leading, 48)
-            MetadataRow(icon: "gamecontroller", title: "按键", value: game.controllerMode.title)
+            MetadataRow(icon: "gamecontroller", title: "按键", value: "ManicEMU 经典键盘")
         }
         .background(.background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }

@@ -20,6 +20,7 @@ enum J2MEButton: String, Codable, CaseIterable, Identifiable {
     case pound
     case softkeyLeft
     case softkeyRight
+    case menu
 
     var id: String { rawValue }
 
@@ -44,6 +45,7 @@ enum J2MEButton: String, Codable, CaseIterable, Identifiable {
         case .pound: "#"
         case .softkeyLeft: "L"
         case .softkeyRight: "R"
+        case .menu: "MENU"
         }
     }
 
@@ -68,6 +70,7 @@ enum J2MEButton: String, Codable, CaseIterable, Identifiable {
         case .pound: "KeyR"
         case .softkeyLeft: "F1"
         case .softkeyRight: "F2"
+        case .menu: "Escape"
         }
     }
 }

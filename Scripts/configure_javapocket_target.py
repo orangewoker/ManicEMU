@@ -54,7 +54,7 @@ def main() -> None:
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         "CLANG_ENABLE_MODULES": "YES",
         "CODE_SIGN_STYLE": "Automatic",
-        "CURRENT_PROJECT_VERSION": "4",
+        "CURRENT_PROJECT_VERSION": "5",
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "NO",
         "INFOPLIST_FILE": "../JavaPocket/Resources/Info.plist",
@@ -177,6 +177,17 @@ def main() -> None:
     ).as_posix()
     project.add_file(
         assets_relative,
+        parent=java_group,
+        tree="SOURCE_ROOT",
+        target_name=TARGET_NAME,
+        file_options=file_options,
+    )
+
+    skin_relative = Path(
+        os.path.relpath(ROOT / "JavaPocket" / "Resources" / "ManicJ2MESkin", ROOT / "ManicEmu")
+    ).as_posix()
+    project.add_file(
+        skin_relative,
         parent=java_group,
         tree="SOURCE_ROOT",
         target_name=TARGET_NAME,

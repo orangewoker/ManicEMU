@@ -34,10 +34,13 @@ struct GameRecord: Codable, Identifiable, Hashable, Sendable {
     var lastPlayedAt: Date?
     var playCount: Int
     var controllerMode: ControllerMode
+    var screenRotation: Bool? = false
 
     var resolution: String { "\(screenWidth)x\(screenHeight)" }
 
     var javaVersion: String {
         [configuration, profile].filter { !$0.isEmpty }.joined(separator: " · ")
     }
+
+    var isScreenRotationEnabled: Bool { screenRotation ?? false }
 }

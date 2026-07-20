@@ -121,6 +121,14 @@ final class GameLibraryStore: ObservableObject {
         update(game.id) { $0.controllerMode = mode }
     }
 
+    func setJ2MESettings(rotation: Bool, width: Int, height: Int, for gameID: String) {
+        update(gameID) {
+            $0.screenRotation = rotation
+            $0.screenWidth = min(max(width, 96), 800)
+            $0.screenHeight = min(max(height, 65), 800)
+        }
+    }
+
     func delete(_ game: GameRecord) {
         do {
             try storage.delete(gameID: game.id)

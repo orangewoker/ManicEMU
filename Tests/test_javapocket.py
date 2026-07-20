@@ -97,6 +97,23 @@ class JavaPocketProjectTests(unittest.TestCase):
         for api in ("openJar", "getSaveData", "loadSaveData", "pressKey", "releaseKey"):
             self.assertIn(api, html)
 
+    def test_original_manicemu_j2me_skin_and_settings_are_bundled(self):
+        skin = ROOT / "JavaPocket/Resources/ManicJ2MESkin"
+        expected = (
+            "info.json", "iphone_edgetoedge_portrait.pdf",
+            "iphone_edgetoedge_landscape.pdf", "iphone_standard_portrait.pdf",
+            "iphone_standard_landscape.pdf", "dpad.pdf", "thumbstick.pdf",
+            "softkeyLeft_button.pdf", "softkeyRight_button.pdf",
+            "num0_button.pdf", "star_button.pdf", "pound_button.pdf",
+        )
+        for filename in expected:
+            self.assertGreater((skin / filename).stat().st_size, 1000, filename)
+        settings = (ROOT / "JavaPocket/Sources/Library/J2MESettingsView.swift").read_text(encoding="utf-8")
+        for resolution in ("96, 65", "176, 208", "176, 220", "240, 320", "360, 640"):
+            self.assertIn(resolution, settings)
+        player = (ROOT / "JavaPocket/Sources/Player/PlayerView.swift").read_text(encoding="utf-8")
+        self.assertIn("ManicJ2MESkinView", player)
+
     def test_xcode_project_isolated_target(self):
         project = (ROOT / "ManicEmu/ManicEmu.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
         root_targets = project.split("targets = (", 1)[1].split(");", 1)[0]

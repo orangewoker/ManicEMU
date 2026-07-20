@@ -145,7 +145,7 @@ final class J2MEView: UIView {
               \(saveBase64),
               \(Self.jsString(locale)),
               \(Self.jsString(screen)),
-              false
+              \(game.isScreenRotationEnabled)
             );
             window.webkit.messageHandlers.j2me.postMessage({type:'openJarCompletion', success:true});
           } catch (error) {
