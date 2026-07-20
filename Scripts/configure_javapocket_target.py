@@ -54,7 +54,7 @@ def main() -> None:
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         "CLANG_ENABLE_MODULES": "YES",
         "CODE_SIGN_STYLE": "Automatic",
-        "CURRENT_PROJECT_VERSION": "5",
+        "CURRENT_PROJECT_VERSION": "6",
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "NO",
         "INFOPLIST_FILE": "../JavaPocket/Resources/Info.plist",
@@ -201,6 +201,14 @@ def main() -> None:
     java_group.add_child(runtime)
     runtime_build_file = add_object(project, PBXBuildFile.create(runtime))
     resources.add_build_file(runtime_build_file)
+
+    j2mejs_runtime = PBXFileReference.create("../System.core/j2mejs", tree="SOURCE_ROOT")
+    j2mejs_runtime["name"] = "j2mejs"
+    j2mejs_runtime.set_last_known_file_type("folder")
+    add_object(project, j2mejs_runtime)
+    java_group.add_child(j2mejs_runtime)
+    j2mejs_build_file = add_object(project, PBXBuildFile.create(j2mejs_runtime))
+    resources.add_build_file(j2mejs_build_file)
 
     # pbxproj 4.3.2 leaves references created in-memory as plain strings in
     # a few paths. Wrap them so comments can be resolved during serialization.

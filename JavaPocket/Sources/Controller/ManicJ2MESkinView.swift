@@ -1,4 +1,4 @@
-import PDFKit
+import CoreGraphics
 import SwiftUI
 
 struct ManicJ2MESkinView: View {
@@ -21,6 +21,7 @@ struct ManicJ2MESkinView: View {
                 ZStack(alignment: .topLeading) {
                     ManicPDFView(name: layout.background)
                         .frame(width: layout.designSize.width, height: layout.designSize.height)
+                        .allowsHitTesting(false)
 
                     J2MEContainerView(
                         game: game,
@@ -139,29 +140,30 @@ private struct ManicPDFView: UIViewRepresentable {
 }
 
 private final class PDFAssetUIView: UIView {
-    private let page: PDFPage?
+    private let document: CGPDFDocument?
 
     init(assetName: String) {
         let base = (assetName as NSString).deletingPathExtension
         let ext = (assetName as NSString).pathExtension
         let url = Bundle.main.url(forResource: base, withExtension: ext, subdirectory: "ManicJ2MESkin")
             ?? Bundle.main.url(forResource: base, withExtension: ext)
-        page = url.flatMap { PDFDocument(url: $0)?.page(at: 0) }
+        document = url.flatMap { CGPDFDocument($0 as CFURL) }
         super.init(frame: .zero)
         isOpaque = false
         backgroundColor = .clear
         contentMode = .redraw
-        isUserInteractionEnabled = false
+        isUserInteractionEnabled = true
     }
 
     required init?(coder: NSCoder) { nil }
 
     override func draw(_ rect: CGRect) {
-        guard let page, let context = UIGraphicsGetCurrentContext() else { return }
+        guard let page = document?.page(at: 1), let context = UIGraphicsGetCurrentContext() else { return }
         context.saveGState()
         context.translateBy(x: 0, y: rect.height)
         context.scaleBy(x: 1, y: -1)
-        page.draw(with: .mediaBox, to: context)
+        context.concatenate(page.getDrawingTransform(.mediaBox, rect: rect, rotate: 0, preserveAspectRatio: true))
+        context.drawPDFPage(page)
         context.restoreGState()
     }
 }

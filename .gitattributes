@@ -16,3 +16,4 @@ System.core/shared_font.bin filter=lfs diff=lfs merge=lfs -text
 # Keep only its two runtime WASM files in regular Git; all unrelated cores remain LFS.
 System.core/freej2me/libmedia/transcode/transcode.wasm -filter -diff -merge -text
 System.core/freej2me/libmidi/libmidi.wasm -filter -diff -merge -text
+System.core/j2mejs/java/classes.jar -filter -diff -merge -text

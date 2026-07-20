@@ -90,12 +90,19 @@ class JavaPocketProjectTests(unittest.TestCase):
                 "ceb1f1ad33e3e7db68fbbd184c3686abbdaf125477ca2a53c1ddf99444c1be99",
             "System.core/freej2me/libmedia/transcode/transcode.wasm":
                 "a8831d65180feea3ad3a05911c5197a4ce7fd34e0b5d14e5db038ea9c45c0d5b",
+            "System.core/j2mejs/java/classes.jar":
+                "6745b63ac881232b5fe20a3dc2def2f3e7a7a97cbb2a8466bc999fd51af2a475",
         }
         for relative, digest in expected.items():
             self.assertEqual(hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(), digest)
         html = (ROOT / "System.core/freej2me/index.html").read_text(encoding="utf-8")
         for api in ("openJar", "getSaveData", "loadSaveData", "pressKey", "releaseKey"):
             self.assertIn(api, html)
+        j2mejs = (ROOT / "System.core/j2mejs/index.html").read_text(encoding="utf-8")
+        for api in ("window.j2me", "openJar", "getSaveData", "loadSaveData", "window.Input"):
+            self.assertIn(api, j2mejs)
+        server = (ROOT / "JavaPocket/Sources/Emulator/J2MELocalServer.swift").read_text(encoding="utf-8")
+        self.assertIn('appendingPathComponent("j2mejs")', server)
 
     def test_original_manicemu_j2me_skin_and_settings_are_bundled(self):
         skin = ROOT / "JavaPocket/Resources/ManicJ2MESkin"

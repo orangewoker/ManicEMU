@@ -15,6 +15,8 @@ final class J2MEView: UIView {
     private var isRuntimeReady = false
     private var didOpenGame = false
     private var saveCompletion: ((Bool) -> Void)?
+    private lazy var networkBridge = J2MENetworkBridge(webView: webView)
+    private var readinessAttempts = 0
 
     private lazy var webView: WKWebView = {
         let configuration = WKWebViewConfiguration()
@@ -70,26 +72,26 @@ final class J2MEView: UIView {
     }
 
     func pause() {
-        evaluate("if (window.freej2meAPI && window.freej2meAPI.pause) window.freej2meAPI.pause();")
+        evaluate("if (window.j2meAPI && window.j2meAPI.pause) window.j2meAPI.pause();")
     }
 
     func resume() {
-        evaluate("if (window.freej2meAPI && window.freej2meAPI.resume) window.freej2meAPI.resume();")
+        evaluate("if (window.j2meAPI && window.j2meAPI.resume) window.j2meAPI.resume();")
     }
 
     func setMuted(_ muted: Bool) {
-        evaluate("if (window.freej2meAPI && window.freej2meAPI.setMute) window.freej2meAPI.setMute(\(muted));")
+        evaluate("if (window.j2meAPI && window.j2meAPI.setMute) window.j2meAPI.setMute(\(muted));")
     }
 
     func save(completion: ((Bool) -> Void)? = nil) {
         saveCompletion = completion
         evaluate("""
         (function() {
-          if (!window.freej2meAPI || !window.freej2meAPI.getSaveData) {
+            if (!window.j2meAPI || !window.j2meAPI.getSaveData) {
             window.webkit.messageHandlers.j2me.postMessage({type:'getSaveDataResult', base64:null});
             return;
           }
-          window.freej2meAPI.getSaveData().then(function(value) {
+          window.j2meAPI.getSaveData().then(function(value) {
             window.webkit.messageHandlers.j2me.postMessage({type:'getSaveDataResult', base64:value});
           }).catch(function(error) {
             window.webkit.messageHandlers.j2me.postMessage({type:'getSaveDataResult', base64:null, error:String(error)});
@@ -130,7 +132,6 @@ final class J2MEView: UIView {
             saveBase64 = "null"
         }
 
-        let locale = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
         let screen = "\(game.screenWidth)x\(game.screenHeight)"
         let script = """
         (async function() {
@@ -138,15 +139,12 @@ final class J2MEView: UIView {
             const response = await fetch(\(Self.jsString(jarURL.absoluteString)));
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const bytes = new Uint8Array(await response.arrayBuffer());
-            if (!window.freej2meAPI || !window.freej2meAPI.openJar) throw new Error('FreeJ2ME API unavailable');
-            await window.freej2meAPI.openJar(
-              bytes,
-              \(Self.jsString(game.jarFileName)),
-              \(saveBase64),
-              \(Self.jsString(locale)),
-              \(Self.jsString(screen)),
-              \(game.isScreenRotationEnabled)
-            );
+            if (!window.j2me || !window.j2me.openJar) throw new Error('J2meJS API unavailable');
+            if (\(saveBase64) && window.j2meAPI && window.j2meAPI.loadSaveData) {
+              window.j2meAPI.loadSaveData(\(saveBase64));
+            }
+            window.j2me.openJar(bytes, \(Self.jsString(game.jarFileName)),
+                                \(Self.jsString(screen)), \(game.isScreenRotationEnabled));
             window.webkit.messageHandlers.j2me.postMessage({type:'openJarCompletion', success:true});
           } catch (error) {
             window.webkit.messageHandlers.j2me.postMessage({type:'openJarCompletion', success:false, error:String(error)});
@@ -192,6 +190,11 @@ final class J2MEView: UIView {
             saveCompletion = nil
         case "exit":
             save { [weak self] _ in self?.onExit?() }
+        case "evalNative":
+            if let command = payload["command"] as? String,
+               let data = payload["data"] as? [String: Any] {
+                networkBridge.handle(command: command, data: data)
+            }
         default:
             break
         }
@@ -216,12 +219,22 @@ extension J2MEView: WKNavigationDelegate {
     }
 
     private func pollRuntimeReady() {
-        webView.evaluateJavaScript("window.freej2meReady === true") { [weak self] result, _ in
+        let readinessScript = """
+        typeof window.j2me !== 'undefined' &&
+        typeof CLASSES !== 'undefined' && !!CLASSES.java_lang_Object &&
+        typeof JARStore !== 'undefined' && typeof MIDP !== 'undefined' && typeof jvm !== 'undefined'
+        """
+        webView.evaluateJavaScript(readinessScript) { [weak self] result, error in
             guard let self else { return }
             if result as? Bool == true {
                 self.isRuntimeReady = true
                 self.openGameIfPossible()
             } else {
+                self.readinessAttempts += 1
+                if self.readinessAttempts >= 40 {
+                    self.onError?(error?.localizedDescription ?? "J2ME 引擎初始化超时，请重新进入游戏。")
+                    return
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
                     self?.pollRuntimeReady()
                 }

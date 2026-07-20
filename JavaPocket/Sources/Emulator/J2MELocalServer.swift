@@ -8,7 +8,7 @@ final class J2MELocalServer {
 
     func start() throws {
         guard !server.isRunning else { return }
-        guard let resources = Bundle.main.resourceURL?.appendingPathComponent("freej2me"),
+        guard let resources = Bundle.main.resourceURL?.appendingPathComponent("j2mejs"),
               FileManager.default.fileExists(atPath: resources.path)
         else {
             throw GameStorageError.gameNotFound

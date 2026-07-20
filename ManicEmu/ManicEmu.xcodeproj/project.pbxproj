@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0DEC0DE0000000000000023 /* j2mejs in Resources */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000033 /* j2mejs */; };
 		C0DEC0DE0000000000000001 /* ManicJ2MESkinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000011 /* ManicJ2MESkinView.swift */; };
 		C0DEC0DE0000000000000002 /* J2MESettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000012 /* J2MESettingsView.swift */; };
 		C0DEC0DE0000000000000003 /* ManicJ2MESkin in Resources */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000013 /* ManicJ2MESkin */; };
@@ -1175,6 +1176,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C0DEC0DE0000000000000033 /* j2mejs */ = {isa = PBXFileReference; lastKnownFileType = folder; name = j2mejs; path = ../System.core/j2mejs; sourceTree = SOURCE_ROOT; };
 		C0DEC0DE0000000000000011 /* ManicJ2MESkinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ManicJ2MESkinView.swift; path = ../JavaPocket/Sources/Controller/ManicJ2MESkinView.swift; sourceTree = SOURCE_ROOT; };
 		C0DEC0DE0000000000000012 /* J2MESettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = J2MESettingsView.swift; path = ../JavaPocket/Sources/Library/J2MESettingsView.swift; sourceTree = SOURCE_ROOT; };
 		C0DEC0DE0000000000000013 /* ManicJ2MESkin */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ManicJ2MESkin; path = ../JavaPocket/Resources/ManicJ2MESkin; sourceTree = SOURCE_ROOT; };
@@ -3157,6 +3159,7 @@
 				C264475E9C699DA08761D092 /* Info.plist */,
 				B7CC43EB80869D3B4FADEA34 /* Assets.xcassets */,
 				A65045A2AEB5DD1D15B8C7D1 /* freej2me */,
+				C0DEC0DE0000000000000033 /* j2mejs */,
 			);
 			name = JavaPocket;
 			sourceTree = "<group>";
@@ -3401,6 +3404,7 @@
 				02384E71A357EA014E151C50 /* Assets.xcassets in Resources */,
 				C0DEC0DE0000000000000003 /* ManicJ2MESkin in Resources */,
 				47CB4F3883792D48D2478296 /* freej2me in Resources */,
+				C0DEC0DE0000000000000023 /* j2mejs in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4447,7 +4451,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../JavaPocket/Resources/Info.plist;
@@ -5261,7 +5265,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../JavaPocket/Resources/Info.plist;
