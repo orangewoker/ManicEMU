@@ -136,6 +136,10 @@ final class J2MEView: UIView {
         }
 
         let screen = "\(game.screenWidth)x\(game.screenHeight)"
+        let fontSize = Self.classicJ2MEFontSize(
+            width: game.screenWidth,
+            height: game.screenHeight
+        )
         let script = """
         (async function() {
           try {
@@ -145,6 +149,13 @@ final class J2MEView: UIView {
             if (!window.j2me || !window.j2me.openJar) throw new Error('J2meJS API unavailable');
             if (window.j2meAPI && window.j2meAPI.setScaleMode) {
               window.j2meAPI.setScaleMode('stretch');
+            }
+            // J2meJS otherwise enforces a 19px minimum font even on classic
+            // 128/176/240px canvases. Chinese Nokia games usually wrap text
+            // for the smaller device font, so that default clips the last
+            // glyphs at the logical canvas edge.
+            if (window.j2meAPI && window.j2meAPI.setConfig) {
+              window.j2meAPI.setConfig('fontSize', \(fontSize));
             }
             if (\(saveBase64) && window.j2meAPI && window.j2meAPI.loadSaveData) {
               window.j2meAPI.loadSaveData(\(saveBase64));
@@ -174,6 +185,19 @@ final class J2MEView: UIView {
               let array = String(data: data, encoding: .utf8)
         else { return "\"\"" }
         return String(array.dropFirst().dropLast())
+    }
+
+    /// Medium system-font sizes used by classic Java ME phone resolutions.
+    /// This is based on logical canvas width, not the iPhone/WebView size.
+    private static func classicJ2MEFontSize(width: Int, height: Int) -> Int {
+        switch min(width, height) {
+        case ..<112:  return 10
+        case ..<150:  return 11
+        case ..<220:  return 13
+        case ..<300:  return 16
+        case ..<350:  return 18
+        default:      return 20
+        }
     }
 
     fileprivate func handleMessage(_ body: Any) {

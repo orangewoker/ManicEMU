@@ -136,7 +136,8 @@ struct GameLibraryView: View {
             if jars.isEmpty {
                 library.importError = "请选择扩展名为 .jar 的 Java ME 游戏文件。"
             } else {
-                library.importURLs(jars)
+                // Keep access to Files/iCloud URLs before this callback exits.
+                library.importPickedURLs(jars)
             }
         case .failure(let error): library.importError = error.localizedDescription
         }

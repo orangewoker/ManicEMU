@@ -102,11 +102,68 @@ struct GameStorage: @unchecked Sendable {
             }
     }
 
+    /// Copies a document-picker URL into the app container while the picker
+    /// security scope is still valid. Files/iCloud may revoke the original URL
+    /// as soon as the picker completion handler returns.
+    func stagePickedJAR(at sourceURL: URL) throws -> URL {
+        guard sourceURL.pathExtension.lowercased() == "jar" else {
+            throw GameStorageError.unsupportedFile
+        }
+
+        try prepare()
+        let stagingDirectory = gamesDirectory.appendingPathComponent(
+            ".picker-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        try fileManager.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
+        let stagedURL = stagingDirectory.appendingPathComponent(sourceURL.lastPathComponent)
+
+        let accessed = sourceURL.startAccessingSecurityScopedResource()
+        defer {
+            if accessed { sourceURL.stopAccessingSecurityScopedResource() }
+        }
+
+        let coordinator = NSFileCoordinator()
+        var coordinationError: NSError?
+        var copyError: Error?
+        coordinator.coordinate(
+            readingItemAt: sourceURL,
+            options: .withoutChanges,
+            error: &coordinationError
+        ) { coordinatedURL in
+            do {
+                try fileManager.copyItem(at: coordinatedURL, to: stagedURL)
+            } catch {
+                copyError = error
+            }
+        }
+
+        if let coordinationError {
+            try? fileManager.removeItem(at: stagingDirectory)
+            throw coordinationError
+        }
+        if let copyError {
+            try? fileManager.removeItem(at: stagingDirectory)
+            throw copyError
+        }
+        return stagedURL
+    }
+
     func consumeLooseJAR(at url: URL) throws {
         let parent = url.deletingLastPathComponent().standardizedFileURL
         let allowedParents = [documentsDirectory, gamesDirectory].map(\.standardizedFileURL)
-        guard allowedParents.contains(parent), fileManager.fileExists(atPath: url.path) else { return }
-        try fileManager.removeItem(at: url)
+        if allowedParents.contains(parent), fileManager.fileExists(atPath: url.path) {
+            try fileManager.removeItem(at: url)
+            return
+        }
+
+        // Picker imports live in Games/.picker-UUID/original-name.jar so the
+        // original filename survives in metadata. Remove the hidden directory.
+        let stagingRoot = parent.deletingLastPathComponent().standardizedFileURL
+        if stagingRoot == gamesDirectory.standardizedFileURL,
+           parent.lastPathComponent.hasPrefix(".picker-") {
+            try fileManager.removeItem(at: parent)
+        }
     }
 
     func write(_ game: GameRecord) throws {

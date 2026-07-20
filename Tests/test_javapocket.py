@@ -75,7 +75,18 @@ class JavaPocketProjectTests(unittest.TestCase):
         self.assertIn("allowedContentTypes: [.data]", library)
         self.assertIn('pathExtension.caseInsensitiveCompare("jar")', library)
         self.assertIn("isImporting", store)
+        self.assertIn("stagePickedJAR", store)
+        self.assertIn("importPickedURLs", library)
         self.assertIn("正在导入 JAR", library)
+
+        storage = (ROOT / "JavaPocket/Sources/Storage/GameStorage.swift").read_text(encoding="utf-8")
+        self.assertIn("startAccessingSecurityScopedResource", storage)
+        self.assertIn('".picker-', storage)
+
+    def test_runtime_uses_classic_logical_font_size(self):
+        runtime = (ROOT / "JavaPocket/Sources/Emulator/J2MEView.swift").read_text(encoding="utf-8")
+        self.assertIn("classicJ2MEFontSize", runtime)
+        self.assertIn("setConfig('fontSize'", runtime)
 
     def test_files_shared_games_folder_discovers_loose_jars(self):
         storage = (ROOT / "JavaPocket/Sources/Storage/GameStorage.swift").read_text(encoding="utf-8")

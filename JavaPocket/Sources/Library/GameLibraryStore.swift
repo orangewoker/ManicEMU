@@ -89,6 +89,7 @@ final class GameLibraryStore: ObservableObject {
                     importedCount += 1
                 } catch {
                     importError = "\(url.lastPathComponent)：\(error.localizedDescription)"
+                    try? storage.consumeLooseJAR(at: url)
                 }
             }
 
@@ -103,6 +104,30 @@ final class GameLibraryStore: ObservableObject {
                 }
             }
             isImporting = false
+        }
+    }
+
+    /// Document-picker URLs are security scoped and may stop being readable
+    /// immediately after its completion callback. Stage them synchronously,
+    /// then parse and hash the app-owned copies in the background.
+    func importPickedURLs(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        guard !isImporting else {
+            importError = "已有 JAR 正在导入，请稍后再试。"
+            return
+        }
+
+        var stagedURLs: [URL] = []
+        do {
+            for url in urls {
+                stagedURLs.append(try storage.stagePickedJAR(at: url))
+            }
+            importURLs(stagedURLs)
+        } catch {
+            for url in stagedURLs {
+                try? storage.consumeLooseJAR(at: url)
+            }
+            importError = "无法读取所选 JAR：\(error.localizedDescription)"
         }
     }
 
