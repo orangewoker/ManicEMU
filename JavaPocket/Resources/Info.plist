@@ -24,6 +24,8 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>com.javapocket.j2me-archive</string>
+				<string>com.sun.java-archive</string>
+				<string>public.zip-archive</string>
 			</array>
 		</dict>
 	</array>
@@ -69,7 +71,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UTExportedTypeDeclarations</key>
+	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>
 			<key>UTTypeConformsTo</key>

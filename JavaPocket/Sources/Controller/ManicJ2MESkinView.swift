@@ -10,11 +10,13 @@ struct ManicJ2MESkinView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let layout = ManicSkinLayout.layout(for: proxy.size)
-            let scale = min(proxy.size.width / layout.designSize.width,
-                            proxy.size.height / layout.designSize.height)
-            let renderedSize = CGSize(width: layout.designSize.width * scale,
-                                      height: layout.designSize.height * scale)
+            let fullSize = CGSize(
+                width: proxy.size.width + proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing,
+                height: proxy.size.height + proxy.safeAreaInsets.top + proxy.safeAreaInsets.bottom
+            )
+            let layout = ManicSkinLayout.layout(for: fullSize)
+            let scaleX = fullSize.width / layout.designSize.width
+            let scaleY = fullSize.height / layout.designSize.height
 
             ZStack(alignment: .topLeading) {
                 Color.black
@@ -45,9 +47,8 @@ struct ManicJ2MESkinView: View {
                     }
                 }
                 .frame(width: layout.designSize.width, height: layout.designSize.height)
-                .scaleEffect(scale, anchor: .topLeading)
-                .frame(width: renderedSize.width, height: renderedSize.height)
-                .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+                .scaleEffect(x: scaleX, y: scaleY, anchor: .topLeading)
+                .frame(width: fullSize.width, height: fullSize.height, alignment: .topLeading)
 
                 Button(action: onExit) {
                     Image(systemName: "xmark")
@@ -62,6 +63,8 @@ struct ManicJ2MESkinView: View {
                 .padding(.trailing, 16)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .frame(width: fullSize.width, height: fullSize.height)
+            .offset(x: -proxy.safeAreaInsets.leading, y: -proxy.safeAreaInsets.top)
         }
         .ignoresSafeArea()
     }
@@ -73,24 +76,30 @@ private struct ManicSkinButton: View {
     @State private var isPressed = false
 
     var body: some View {
-        ManicPDFView(name: item.asset)
-            .opacity(isPressed ? 0.72 : 1)
-            .frame(width: item.frame.width, height: item.frame.height)
-            .contentShape(Rectangle())
-            .position(x: item.frame.midX, y: item.frame.midY)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        guard !isPressed else { return }
-                        isPressed = true
-                        onButton(item.button, true)
-                    }
-                    .onEnded { _ in
-                        guard isPressed else { return }
-                        isPressed = false
-                        onButton(item.button, false)
-                    }
+        let expandsHitArea = [.fire, .menu, .softkeyLeft, .softkeyRight].contains(item.button)
+        let hitWidth = item.frame.width + (expandsHitArea ? 24 : 0)
+        let hitHeight = item.frame.height + (expandsHitArea ? 24 : 0)
+        ZStack {
+            ManicPDFView(name: item.asset)
+                .opacity(isPressed ? 0.72 : 1)
+                .allowsHitTesting(false)
+                .frame(width: item.frame.width, height: item.frame.height)
+            ManicPressInputView(
+                touchDown: {
+                    guard !isPressed else { return }
+                    isPressed = true
+                    onButton(item.button, true)
+                },
+                touchUp: {
+                    guard isPressed else { return }
+                    isPressed = false
+                    onButton(item.button, false)
+                }
             )
+            .frame(width: hitWidth, height: hitHeight)
+        }
+        .frame(width: hitWidth, height: hitHeight)
+        .position(x: item.frame.midX, y: item.frame.midY)
     }
 }
 
@@ -100,32 +109,106 @@ private struct ManicDPadView: View {
     @State private var activeButton: J2MEButton?
 
     var body: some View {
-        ManicPDFView(name: "dpad.pdf")
-            .frame(width: frame.width, height: frame.height)
-            .contentShape(Rectangle())
-            .position(x: frame.midX, y: frame.midY)
-            .gesture(
-                DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                    .onChanged { value in
-                        let next = direction(at: value.location)
-                        guard next != activeButton else { return }
-                        if let activeButton { onButton(activeButton, false) }
-                        activeButton = next
-                        if let next { onButton(next, true) }
-                    }
-                    .onEnded { _ in
-                        if let activeButton { onButton(activeButton, false) }
-                        activeButton = nil
-                    }
-            )
+        ZStack {
+            ManicPDFView(name: "dpad.pdf")
+                .allowsHitTesting(false)
+            ManicDPadInputView { next in
+                guard next != activeButton else { return }
+                if let activeButton { onButton(activeButton, false) }
+                activeButton = next
+                if let next { onButton(next, true) }
+            }
+        }
+        .frame(width: frame.width, height: frame.height)
+        .position(x: frame.midX, y: frame.midY)
+    }
+}
+
+private struct ManicPressInputView: UIViewRepresentable {
+    let touchDown: () -> Void
+    let touchUp: () -> Void
+
+    func makeUIView(context: Context) -> ManicPressUIView {
+        ManicPressUIView(touchDown: touchDown, touchUp: touchUp)
     }
 
-    private func direction(at point: CGPoint) -> J2MEButton? {
-        let dx = point.x - frame.width / 2
-        let dy = point.y - frame.height / 2
-        guard hypot(dx, dy) > min(frame.width, frame.height) * 0.16 else { return .fire }
-        if abs(dx) > abs(dy) { return dx < 0 ? .left : .right }
-        return dy < 0 ? .up : .down
+    func updateUIView(_ uiView: ManicPressUIView, context: Context) {
+        uiView.touchDown = touchDown
+        uiView.touchUp = touchUp
+    }
+}
+
+private final class ManicPressUIView: UIView {
+    var touchDown: () -> Void
+    var touchUp: () -> Void
+    private var isPressed = false
+
+    init(touchDown: @escaping () -> Void, touchUp: @escaping () -> Void) {
+        self.touchDown = touchDown
+        self.touchUp = touchUp
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        isMultipleTouchEnabled = true
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard !isPressed else { return }
+        isPressed = true
+        touchDown()
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { release() }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { release() }
+
+    private func release() {
+        guard isPressed else { return }
+        isPressed = false
+        touchUp()
+    }
+}
+
+private struct ManicDPadInputView: UIViewRepresentable {
+    let changed: (J2MEButton?) -> Void
+
+    func makeUIView(context: Context) -> ManicDPadUIView {
+        ManicDPadUIView(changed: changed)
+    }
+
+    func updateUIView(_ uiView: ManicDPadUIView, context: Context) {
+        uiView.changed = changed
+    }
+}
+
+private final class ManicDPadUIView: UIView {
+    var changed: (J2MEButton?) -> Void
+
+    init(changed: @escaping (J2MEButton?) -> Void) {
+        self.changed = changed
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        isMultipleTouchEnabled = true
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches) }
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches) }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { changed(nil) }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { changed(nil) }
+
+    private func update(_ touches: Set<UITouch>) {
+        guard let point = touches.first?.location(in: self) else { return }
+        let dx = point.x - bounds.midX
+        let dy = point.y - bounds.midY
+        if hypot(dx, dy) <= min(bounds.width, bounds.height) * 0.18 {
+            changed(.fire)
+        } else if abs(dx) > abs(dy) {
+            changed(dx < 0 ? .left : .right)
+        } else {
+            changed(dy < 0 ? .up : .down)
+        }
     }
 }
 

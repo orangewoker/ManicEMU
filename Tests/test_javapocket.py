@@ -72,6 +72,8 @@ class JavaPocketProjectTests(unittest.TestCase):
         self.assertIn("NSFileCoordinator", importer)
         self.assertIn(".incoming-", importer)
         self.assertIn('exportedAs: "com.javapocket.j2me-archive"', library)
+        self.assertIn("allowedContentTypes: [.data]", library)
+        self.assertIn('pathExtension.caseInsensitiveCompare("jar")', library)
         self.assertIn("isImporting", store)
         self.assertIn("正在导入 JAR", library)
 
@@ -120,6 +122,9 @@ class JavaPocketProjectTests(unittest.TestCase):
             self.assertIn(resolution, settings)
         player = (ROOT / "JavaPocket/Sources/Player/PlayerView.swift").read_text(encoding="utf-8")
         self.assertIn("ManicJ2MESkinView", player)
+        skin_source = (ROOT / "JavaPocket/Sources/Controller/ManicJ2MESkinView.swift").read_text(encoding="utf-8")
+        self.assertIn("ManicDPadUIView", skin_source)
+        self.assertIn("scaleEffect(x: scaleX, y: scaleY", skin_source)
 
     def test_xcode_project_isolated_target(self):
         project = (ROOT / "ManicEmu/ManicEmu.xcodeproj/project.pbxproj").read_text(encoding="utf-8")

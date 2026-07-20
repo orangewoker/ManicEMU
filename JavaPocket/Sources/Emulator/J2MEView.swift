@@ -33,6 +33,9 @@ final class J2MEView: UIView {
         view.uiDelegate = self
         view.scrollView.isScrollEnabled = false
         view.scrollView.bounces = false
+        view.scrollView.contentInsetAdjustmentBehavior = .never
+        view.scrollView.contentInset = .zero
+        view.scrollView.scrollIndicatorInsets = .zero
         view.isOpaque = true
         view.backgroundColor = .black
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -140,11 +143,17 @@ final class J2MEView: UIView {
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const bytes = new Uint8Array(await response.arrayBuffer());
             if (!window.j2me || !window.j2me.openJar) throw new Error('J2meJS API unavailable');
+            if (window.j2meAPI && window.j2meAPI.setScaleMode) {
+              window.j2meAPI.setScaleMode('stretch');
+            }
             if (\(saveBase64) && window.j2meAPI && window.j2meAPI.loadSaveData) {
               window.j2meAPI.loadSaveData(\(saveBase64));
             }
             window.j2me.openJar(bytes, \(Self.jsString(game.jarFileName)),
                                 \(Self.jsString(screen)), \(game.isScreenRotationEnabled));
+            setTimeout(function() {
+              if (window.j2meAPI && window.j2meAPI.safeApply) window.j2meAPI.safeApply();
+            }, 800);
             window.webkit.messageHandlers.j2me.postMessage({type:'openJarCompletion', success:true});
           } catch (error) {
             window.webkit.messageHandlers.j2me.postMessage({type:'openJarCompletion', success:false, error:String(error)});

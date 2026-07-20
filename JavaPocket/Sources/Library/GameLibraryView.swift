@@ -73,7 +73,10 @@ struct GameLibraryView: View {
             }
             .fileImporter(
                 isPresented: $isImporterPresented,
-                allowedContentTypes: [.javaArchive],
+                // Files may report a JAR as public.data, public.zip-archive, or
+                // com.sun.java-archive. Filtering by our exported UTI disables
+                // otherwise valid JARs, so validate the extension after picking.
+                allowedContentTypes: [.data],
                 allowsMultipleSelection: true,
                 onCompletion: handleImport
             )
@@ -128,7 +131,13 @@ struct GameLibraryView: View {
 
     private func handleImport(_ result: Result<[URL], Error>) {
         switch result {
-        case .success(let urls): library.importURLs(urls)
+        case .success(let urls):
+            let jars = urls.filter { $0.pathExtension.caseInsensitiveCompare("jar") == .orderedSame }
+            if jars.isEmpty {
+                library.importError = "请选择扩展名为 .jar 的 Java ME 游戏文件。"
+            } else {
+                library.importURLs(jars)
+            }
         case .failure(let error): library.importError = error.localizedDescription
         }
     }

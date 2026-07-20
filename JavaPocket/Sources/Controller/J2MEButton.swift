@@ -70,7 +70,7 @@ enum J2MEButton: String, Codable, CaseIterable, Identifiable {
         case .pound: "KeyR"
         case .softkeyLeft: "F1"
         case .softkeyRight: "F2"
-        case .menu: "Escape"
+        case .menu: "F1"
         }
     }
 }
