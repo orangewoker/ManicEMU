@@ -57,6 +57,12 @@ class JavaPocketProjectTests(unittest.TestCase):
             info = plistlib.load(stream)
         self.assertEqual(info["CFBundleDisplayName"], "JavaPocket")
         self.assertIn("jar", json.dumps(info))
+        library = (ROOT / "JavaPocket/Sources/Library/GameLibraryView.swift").read_text(encoding="utf-8")
+        self.assertIn('return "V\\(version ?? "1.0.2")"', library)
+        self.assertNotIn("LibraryHero", library)
+        settings = (ROOT / "JavaPocket/Sources/Library/J2MESettingsView.swift").read_text(encoding="utf-8")
+        self.assertIn(".preferredColorScheme(.light)", settings)
+        self.assertIn(".secondarySystemGroupedBackground", settings)
 
     def test_feature_modules_and_storage_contract(self):
         for feature in ("App", "Library", "Import", "Player", "Controller", "Emulator", "Storage", "Modifier"):

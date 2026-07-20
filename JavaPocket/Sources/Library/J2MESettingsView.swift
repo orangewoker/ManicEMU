@@ -67,7 +67,7 @@ struct J2MESettingsView: View {
                             .padding(.horizontal, 18)
                             .padding(.top, 18)
 
-                            Divider().overlay(.white.opacity(0.05))
+                            Divider()
 
                             dimensionSlider(title: "宽度", value: $width, range: 96...800)
                             dimensionSlider(title: "高度", value: $height, range: 65...800)
@@ -83,12 +83,12 @@ struct J2MESettingsView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 22)
             }
-            .background(Color(red: 0.055, green: 0.055, blue: 0.075).ignoresSafeArea())
-            .foregroundStyle(.white)
+            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+            .foregroundStyle(.primary)
             .navigationTitle("☕︎  J2ME 设置")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbarBackground(Color(red: 0.055, green: 0.055, blue: 0.075), for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
+            .toolbarBackground(Color(uiColor: .systemGroupedBackground), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -96,14 +96,14 @@ struct J2MESettingsView: View {
                         Image(systemName: "xmark")
                             .font(.headline.bold())
                             .frame(width: 36, height: 36)
-                            .background(Color.white.opacity(0.04), in: Circle())
-                            .overlay(Circle().stroke(.white.opacity(0.16)))
+                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: Circle())
+                            .overlay(Circle().stroke(Color(uiColor: .separator).opacity(0.35)))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
         .onAppear(perform: load)
         .interactiveDismissDisabled(false)
         .onDisappear(perform: save)
@@ -119,7 +119,7 @@ struct J2MESettingsView: View {
     private func settingCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
             .frame(maxWidth: .infinity)
-            .background(Color(red: 0.105, green: 0.105, blue: 0.135), in: RoundedRectangle(cornerRadius: 22))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22))
     }
 
     private func settingIcon(_ systemName: String) -> some View {

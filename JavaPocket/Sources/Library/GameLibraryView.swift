@@ -14,7 +14,6 @@ struct GameLibraryView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    LibraryHero()
                     Picker("筛选", selection: $library.filter) {
                         ForEach(GameLibraryStore.Filter.allCases) { filter in
                             Text(filter.title).tag(filter)
@@ -55,6 +54,12 @@ struct GameLibraryView: View {
             .navigationTitle("J2ME Games")
             .searchable(text: $library.searchText, prompt: "搜索游戏或厂商")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Text(displayedVersion)
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("JavaPocket \(displayedVersion)")
+                }
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button(action: toggleLayout) {
                         Image(systemName: library.isGrid ? "list.bullet" : "square.grid.2x2")
@@ -125,6 +130,11 @@ struct GameLibraryView: View {
         library.importError == nil ? "导入完成" : "导入失败"
     }
 
+    private var displayedVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        return "V\(version ?? "1.0.2")"
+    }
+
     private func presentImporter() { isImporterPresented = true }
     private func toggleLayout() { library.isGrid.toggle() }
 
@@ -188,32 +198,6 @@ private struct JARDocumentPicker: UIViewControllerRepresentable {
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
             parent.isPresented = false
         }
-    }
-}
-
-private struct LibraryHero: View {
-    var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.indigo.gradient)
-                Image(systemName: "iphone.gen1.radiowaves.left.and.right")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 66, height: 66)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("JavaPocket")
-                    .font(.title2.bold())
-                Text("把经典 Java 手机游戏装进口袋")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .background(.background, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 
